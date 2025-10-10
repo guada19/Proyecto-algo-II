@@ -6,44 +6,46 @@ class Tablero:
         self.largo = largo
         self.matriz = [["0" for _ in range(ancho)] for _ in range(largo)]
         self.vehiculos = []
+        self.recursos = []
+        
+    def inicializar_vehiculos(self):
+        tipos = [
+            (Jeep, 3),
+            (Moto, 2),
+            (Camion, 2),
+            (Auto, 3)
+        ]
 
-    def inicializar_vehiculos(self, ancho):
-        
-        Jeep.filas_por_jugador = {1: 0, 2: 0}
-        Moto.filas_por_jugador = {1: 0, 2: 0}
-        Camion.filas_por_jugador = {1: 0, 2: 0}
-        Auto.filas_por_jugador = {1: 0, 2: 0}
+        self.vehiculos = []
+        Vehiculo.filas_por_jugador = {1: 0, 2: 0}
 
-        
-        vehiculos_jugador1 = [Jeep(0, 1) for _ in range(3)] + \
-                                  [Moto(0, 1) for _ in range(2)] + \
-                                  [Camion(0, 1) for _ in range(2)] + \
-                                  [Auto(0, 1) for _ in range(3)]
+        for clase, cantidad in tipos:
+            for jugador in (1, 2):
+                for _ in range(cantidad):
+                    if jugador == 1:
+                        x = Vehiculo.filas_por_jugador[1]
+                        y = 0
+                        Vehiculo.filas_por_jugador[1] += 1
+                    else:
+                        x = self.largo - 1 - Vehiculo.filas_por_jugador[2]
+                        y = self.ancho-1
+                        Vehiculo.filas_por_jugador[2] += 1
 
-        
-        vehiculos_jugador2 = [Jeep(ancho-1, 2) for _ in range(3)] + \
-                                  [Moto(ancho-1, 2) for _ in range(2)] + \
-                                  [Camion(ancho-1, 2) for _ in range(2)] + \
-                                  [Auto(ancho-1, 2) for _ in range(3)]
-        
-        self.vehiculos = vehiculos_jugador1 + vehiculos_jugador2
-        
-        # Poner los vehículos en la matriz
+                    self.vehiculos.append(clase(posicion=(x, y), jugador=jugador))
+
         self.actualizar_matriz()
 
     def actualizar_matriz(self):
-        # Limpiar la matriz
         self.matriz = [["0" for _ in range(self.ancho)] for _ in range(self.largo)]
-
         for v in self.vehiculos:
             x, y = v.posicion
-            self.matriz[x][y] = v.tipo[0]
-            
+            if 0 <= x < self.ancho and 0 <= y < self.largo:
+                self.matriz[x][y] = v.tipo[0]
+         
     def ejecutar_turno_global(self):
         for v in self.vehiculos:
             v.posicion_anterior = (v.x, v.y)  
             v.ejecutar_estrategia()          
-
         
         self.actualizar_matriz_parcial()
 

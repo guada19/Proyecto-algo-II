@@ -4,8 +4,7 @@ class Vehiculo:
     
     def __init__(self, tipo, posicion, capacidad_carga, viajes_restantes, tipo_carga_permitida, estado, jugador, max_viajes):
         self.tipo = tipo
-        self.x, self.y = Vehiculo.filas_por_jugador[jugador], posicion
-        Vehiculo.filas_por_jugador[jugador] += 1
+        self.x, self.y = posicion
         self.capacidad_carga = capacidad_carga
         self.viajes_restantes = viajes_restantes
         self.tipo_carga_permitida = tipo_carga_permitida
@@ -34,6 +33,8 @@ class Vehiculo:
         self.estado = "destruido"
 
     def ejecutar_estrategia(self):
+        #Acá habría que relacionarlo con la clase jugador accediendo a self.jugador
+        #y que cada vehículo tenga su propio método con un @override
         if self.estado == "activo": 
             self.x += 1
             if self.y == 0:
