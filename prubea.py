@@ -5,11 +5,5 @@ ancho = 15
 largo = 15
 
 tablero = Tablero(ancho, largo)
-tablero.inicializar_vehiculos(ancho)
-tablero.mostrar_tablero()
-tablero.ejecutar_turno_global()
-print()
-print()
-print()
-print()
+tablero.inicializar_vehiculos()
 tablero.mostrar_tablero()
