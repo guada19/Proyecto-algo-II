@@ -13,43 +13,43 @@ COLOR_MAPA = (149, 135, 122)
 class Visualizer:
     #Inicializa pygames
     #settea tamaño de la ventana
-    def __init__(self, width=800, height=600, cell_size=20, margin_top=40, margin_bottom=40, base_width=120):
+    def __init__(self, ancho=800, alto=600, tamaño_celdas=20, margen_arriba=40, margen_abajo=40, base_ancho=120):
         pygame.init()
-        self.width = width
-        self.height = height
-        self.cell_size = cell_size
-        self.margin_top = margin_top
-        self.margin_bottom = margin_bottom
-        self.base_width = base_width
-        self.screen = pygame.display.set_mode((width, height))
+        self.ancho = ancho
+        self.alto = alto
+        self.tamaño_celdas = tamaño_celdas
+        self.margen_arriba = margen_arriba
+        self.margen_abajo = margen_abajo
+        self.base_ancho = base_ancho
+        self.pantalla = pygame.display.set_mode((ancho, alto))
         pygame.display.set_caption("Simulador de Rescate - Mapa")
         self.clock = pygame.time.Clock()
 
     #Dibuja las cuadriculas del mapa con bases laterales y márgenes
     def draw_grid(self):
         #Cuadricula per se
-        top = self.margin_top
-        bottom = self.height - self.margin_bottom
-        left = self.base_width
-        right = self.width - self.base_width
+        arriba = self.margen_arriba
+        abajo = self.alto - self.margen_abajo
+        izquierda = self.base_ancho
+        derecha = self.ancho - self.base_ancho
         
         # Fondo de mapa central
-        pygame.draw.rect(self.screen, COLOR_MAPA, (left, top, right - left, bottom - top))
+        pygame.draw.rect(self.pantalla, COLOR_MAPA, (izquierda, arriba, derecha - izquierda, abajo - arriba))
 
         # Cuadrícula dentro del área central
-        cols = (right - left) // self.cell_size
-        rows = (bottom - top) // self.cell_size
+        cols = (derecha - izquierda) // self.tamaño_celdas
+        rows = (abajo - arriba) // self.tamaño_celdas
 
         for c in range(cols + 1):
-            x = left + c * self.cell_size
-            pygame.draw.line(self.screen, COLOR_LINEA, (x, top), (x, bottom), 2)
+            x = izquierda + c * self.tamaño_celdas
+            pygame.draw.line(self.pantalla, COLOR_LINEA, (x, arriba), (x, abajo), 2)
         for r in range(rows + 1):
-            y = top + r * self.cell_size
-            pygame.draw.line(self.screen, COLOR_LINEA, (left, y), (right, y), 2)
+            y = arriba + r * self.tamaño_celdas
+            pygame.draw.line(self.pantalla, COLOR_LINEA, (izquierda, y), (derecha, y), 2)
 
         # Bases laterales
-        pygame.draw.rect(self.screen, COLOR_BASE1, (0, top, self.base_width, bottom - top))
-        pygame.draw.rect(self.screen, COLOR_BASE2, (right, top, self.base_width, bottom - top))
+        pygame.draw.rect(self.pantalla, COLOR_BASE1, (0, arriba, self.base_ancho, abajo - arriba))
+        pygame.draw.rect(self.pantalla, COLOR_BASE2, (derecha, arriba, self.base_ancho, abajo - arriba))
 
         # Etiquetas opcionales (cuando tengamos más cosas se mejora)
     """ font = pygame.font.SysFont(None, 28)
@@ -57,8 +57,8 @@ class Visualizer:
         text2 = font.render("BASE JUGADOR 2", True, (255, 255, 255))
 
         # centradas verticalmente
-        self.screen.blit(text1, (10, self.height // 2 - 10))
-        self.screen.blit(text2, (self.width - self.base_width + 10, self.height // 2 - 10))
+        self.pantalla.blit(text1, (10, self.alto // 2 - 10))
+        self.pantalla.blit(text2, (self.ancho - self.base_ancho + 10, self.alto // 2 - 10))
         """
 
     #Funcion que mantiene la ventana abierta
@@ -69,7 +69,7 @@ class Visualizer:
                 if event.type == pygame.QUIT:
                     running = False
 
-            self.screen.fill(COLOR_FONDO)
+            self.pantalla.fill(COLOR_FONDO)
             self.draw_grid()
 
             pygame.display.flip()
