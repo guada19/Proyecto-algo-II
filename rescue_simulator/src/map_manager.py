@@ -1,4 +1,4 @@
-from clase_vehiculo import *
+from aircraft import *
 
 class Tablero:
     def __init__(self, ancho, largo):
