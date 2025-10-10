@@ -1,4 +1,8 @@
 from aircraft import *
+from mines import *
+from resources import *
+from base import *
+
 
 class Tablero:
     def __init__(self, ancho, largo):
@@ -7,32 +11,35 @@ class Tablero:
         self.matriz = [["0" for _ in range(ancho)] for _ in range(largo)]
         self.vehiculos = []
         self.recursos = []
+        self.minas = []
         
-    def inicializar_vehiculos(self):
-        tipos = [
-            (Jeep, 3),
-            (Moto, 2),
-            (Camion, 2),
-            (Auto, 3)
-        ]
+        # Inicializamos las bases
+        self.base_jugador1 = Base(ancho, largo, 1, [])
+        self.base_jugador2 = Base(ancho, largo, 2, [])
+        self.bases = {1: self.base_jugador1, 2: self.base_jugador2}
+    
 
+    def inicializar_vehiculos(self):
+        tipos = [(Jeep, 3),(Moto, 2),(Camion, 2), (Auto, 3)]
         self.vehiculos = []
         Vehiculo.filas_por_jugador = {1: 0, 2: 0}
 
         for clase, cantidad in tipos:
             for jugador in (1, 2):
+                base_actual = self.bases[jugador]
                 for _ in range(cantidad):
                     if jugador == 1:
                         x = Vehiculo.filas_por_jugador[1]
                         y = 0
                         Vehiculo.filas_por_jugador[1] += 1
                     else:
-                        x = self.largo - 1 - Vehiculo.filas_por_jugador[2]
+                        x = Vehiculo.filas_por_jugador[2]
                         y = self.ancho-1
                         Vehiculo.filas_por_jugador[2] += 1
-
-                    self.vehiculos.append(clase(posicion=(x, y), jugador=jugador))
-
+                
+                    nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
+                    base_actual.vehiculos.append(nuevo_vehiculo)
+                    self.vehiculos.append(nuevo_vehiculo) 
         self.actualizar_matriz()
 
     def actualizar_matriz(self):
@@ -60,3 +67,4 @@ class Tablero:
     def mostrar_tablero(self):
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
+    
