@@ -1,7 +1,7 @@
-from aircraft import *
-from mines import *
-from resources import *
-from base import *
+from src.aircraft import *
+from src.mines import *
+from src.resources import *
+from src.base import *
 
 
 class Tablero:
