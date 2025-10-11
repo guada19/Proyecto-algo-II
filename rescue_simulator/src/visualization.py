@@ -2,12 +2,7 @@ import pygame
 pygame.init()
 
 
-# Colores base
-COLOR_FONDO = (78, 77, 52)
-COLOR_LINEA = (60, 54, 49)
-COLOR_BASE1 = (78, 77, 52)    # base izquierda (jugador 1)
-COLOR_BASE2 = (78, 77, 52)    # base derecha (jugador 2)
-COLOR_MAPA = (149, 135, 122)
+
 
 #Clase que muestra todo en pantalla
 class Visualizer:
@@ -18,8 +13,15 @@ class Visualizer:
     - colores por contenido de celda en draw_from_tablero()
     """
     #Inicializa el tablero
-    def __init__(self, tablero, ancho=1000, alto=600):
+    def __init__(self, tablero, ancho=1000, alto=700):
         
+        # Colores base
+        self.color_fondo = (78, 77, 52)    #fondo general
+        self.color_grid_line = (60, 54, 49)  #lineas
+        self.color_panel = (143, 125, 110)    # bases
+        self.color_grid_bg = (149, 135, 122)  #fondo tablero
+        self.color_borde = (57, 50, 44)      # bordes negros
+
         self.tablero = tablero
         self.ancho = ancho
         self.alto = alto
@@ -28,6 +30,9 @@ class Visualizer:
         self.pantalla = pygame.display.set_mode((self.ancho, self.alto))
         pygame.display.set_caption("Simulador - Tablero")
         self.clock = pygame.time.Clock()
+
+        pygame.font.init()
+        self.font = pygame.font.SysFont(None, 24, bold=False)  # para "Base J1/J2"
 
         self._compute_layout(margen = 40)
 
@@ -39,7 +44,7 @@ class Visualizer:
                 if e.type == pygame.QUIT:
                     corriendo = False
 
-            self.pantalla.fill((COLOR_FONDO))  # fondo liso por ahora
+            self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
             #self.draw_from_tablero()
 
@@ -48,72 +53,85 @@ class Visualizer:
             self.clock.tick(60)
         pygame.quit()
 
-    #Calcula el tamaño de las celdas
-    def _compute_layout(self, margen=40, base_px=140):
-        """Reserva 'base_px' para cada base y ajusta la grilla central."""
-        self.columnas = self.tablero.ancho
-        self.filas    = self.tablero.largo
+    def _compute_layout(self, margen=28, base_px=90):
+        """Reserva paneles laterales (bases) y centra la grilla."""
+        self.columnas = int(self.tablero.ancho)
+        self.filas    = int(self.tablero.largo)
 
-        mx = my = margen
-        self.base_w = base_px
+        self.base_w = int(base_px)
+        self.margen = int(margen)
 
-        # espacio disponible para TODO el tablero (bases + grilla)
-        avail_w = self.ancho - 2*mx
-        avail_h = self.alto  - 2*my
+        # área total util (dentro del margen)
+        avail_w = self.ancho - 2*self.margen
+        avail_h = self.alto  - 2*self.margen
 
-        # columnas de la grilla central (excluye 0 y cols-1)
-        centro_columnas = max(self.columnas - 2, 0)
+        # columnas solo del centro (excluye las de base lógicas)
+        central_cols = max(self.columnas - 2, 1)
 
-        # ancho disponible para la grilla central (restando bases)
-        ancho_centro = max(avail_w - 2*self.base_w, 1)
+        # ancho disponible para la grilla central (resta paneles)
+        central_avail_w = max(avail_w - 2*self.base_w, 1)
 
-        # tamaño de celda (todas las filas tienen la misma altura)
-        celda_ancho = ancho_centro // max(centro_columnas, 1) if centro_columnas > 0 else ancho_centro
-        celda_alto = avail_h // self.filas
-        self.celda = max(8, min(celda_ancho, celda_alto))
+        # tamaño de celda y dimensiones
+        self.celda = max(6, min(central_avail_w // central_cols, avail_h // self.filas))
+        self.central_w = self.celda * central_cols
+        self.central_h = self.celda * self.filas
 
-        # dimensiones reales de cada zona
-        self.central_w = self.celda * centro_columnas
-        tablero_ancho = self.base_w*2 + self.central_w
-        tablero_alto = self.celda * self.filas
+        # origen para centrar todo (panel izq + grilla + panel der)
+        total_w = self.base_w*2 + self.central_w
+        self.gx = (self.ancho - total_w) // 2
+        self.gy = (self.alto  - self.central_h) // 2
 
-        # origen para centrar todo el tablero
-        self.gx = (self.ancho - tablero_ancho) // 2
-        self.gy = (self.alto  - tablero_alto) // 2
-
-    #Dibuja las cuadriculas del tablero
+    #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
         gx = self.gx
         gy = self.gy
-        h = self.celda * self.filas
+        h = self.central_h
 
-        # --- bases laterales (fuera de la grilla) ---
-        # izquierda
-        left_base_rect = (gx, gy, self.base_w, h)
-        # derecha
-        right_base_x = gx + self.base_w + self.central_w
-        right_base_rect = (right_base_x, gy, self.base_w, h)
-
-        # --- área central (grilla) ---
-        central_x = gx + self.base_w
+        # rects
+        base_j1   = (gx, gy, self.base_w, h) #Base jugador 1
+        central_x    = gx + self.base_w
         central_rect = (central_x, gy, self.central_w, h)
+        base_j2  = (central_x + self.central_w, gy, self.base_w, h) #Base jugador 2
 
-        # fondos
-        pygame.draw.rect(self.pantalla, COLOR_MAPA, central_rect)
-        pygame.draw.rect(self.pantalla, COLOR_BASE1, left_base_rect)
-        pygame.draw.rect(self.pantalla, COLOR_BASE2, right_base_rect)
+        # paneles bases
+        pygame.draw.rect(self.pantalla, self.color_panel, base_j1, 0, border_radius=2)
+        pygame.draw.rect(self.pantalla, self.color_panel, base_j2, 0, border_radius=2)
+        pygame.draw.rect(self.pantalla, self.color_borde, base_j1, 3, border_radius=2)
+        pygame.draw.rect(self.pantalla, self.color_borde, base_j2, 3, border_radius=2)
 
-        # líneas verticales SOLO en la grilla central
-        central_cols = max(self.columnas - 2, 0)
-        for c in range(central_cols + 1):
-            x = central_x + c * self.celda
-            pygame.draw.line(self.pantalla, COLOR_LINEA, (x, gy), (x, gy + h), 1)
+        # títulos “Base J1/J2”
+        txt1 = self.font.render("Base J1", True, self.color_borde)
+        txt2 = self.font.render("Base J2", True, self.color_borde)
+        self.pantalla.blit(txt1, (base_j1[0] + 10, base_j1[1] + 10))
+        self.pantalla.blit(txt2, (base_j2[0] + 10, base_j2[1] + 10))
 
-        # horizontales (a lo ancho de toda el área, o solo central si preferís)
-        # acá las hago solo sobre la grilla central para reforzar el efecto
-        for r in range(self.filas + 1):
-            y = gy + r * self.celda
-            pygame.draw.line(self.pantalla, COLOR_LINEA, (central_x, y), (central_x + self.central_w, y), 1)   
+        # área de grilla (fondo + borde)
+        pygame.draw.rect(self.pantalla, self.color_grid_bg, central_rect, 0)
+        
+        # líneas de grilla (solo dentro del rect central)
+        cols_centro = max(self.columnas - 2, 1)
+
+        # Rectángulo interior donde van SOLO las líneas (dejamos margen del borde)
+        inset = 1  # podés probar 2–4 px
+        inner_left   = central_x + inset
+        inner_top    = gy + inset
+        inner_right  = central_x + self.central_w - inset
+        inner_bottom = gy + h - inset
+        inner_w = inner_right - inner_left
+        inner_h = inner_bottom - inner_top
+
+        # Verticales: de 1 a (cols_centro - 1) → NO dibujar las de los bordes
+        for c in range(1, cols_centro):
+            x = inner_left + c * (self.celda)
+            pygame.draw.line(self.pantalla, self.color_grid_line, (x, inner_top), (x, inner_bottom), 2)
+
+        # Horizontales: de 1 a (filas - 1) → NO dibujar las de los bordes
+        for r in range(1, self.filas):
+            y = inner_top + r * (self.celda)
+            pygame.draw.line(self.pantalla, self.color_grid_line, (inner_left, y), (inner_right, y), 2)
+
+        # --- borde del tablero (encima de las líneas) ---
+        pygame.draw.rect(self.pantalla, self.color_borde, central_rect, 3)
 
 
     #permite que las bases sean consideradas dentro del tablero
