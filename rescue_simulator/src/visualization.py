@@ -46,7 +46,7 @@ class Visualizer:
 
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
-            #self.draw_from_tablero()
+            self.draw_from_tablero()
 
 
             pygame.display.flip()
@@ -157,25 +157,38 @@ class Visualizer:
 
 
     #Forma visual de los elementos (ES TEMPORAL, necesitamos que exista despues lo mejoramos)
-    """def draw_from_tablero(self):
-        colores = {
-            "J": (255, 220, 70),   # Jeep
-            "M": (255, 170, 70),   # Moto
-            "C": (255, 255, 110),  # Camión
-            "A": (255, 240, 130),  # Auto
-            "R": (0, 200, 120),    # Recurso
-            "X": (200, 0, 0),      # Mina
-            "B1": (120, 40, 40),   # si querés marcar base en matriz
-            "B2": (40, 40, 120),
-        }
+    def draw_item(self, tipo, rect):
+        # tamaño base: tomamos la altura (celda) para que en las bases no explote
+        base = min(rect.width, rect.height)          # o directamente: base = rect.height
+        radio = max(3, base // 2 - 2)
+        lado  = max(4, base - 4)
+
+        if tipo == "X":  # mina: cuadrado con borde
+            r = pygame.Rect(rect.x + (rect.width - lado)//2,
+                            rect.y + (rect.height - lado)//2,
+                            lado, lado)
+            pygame.draw.rect(self.pantalla, (200, 0, 0), r)
+            pygame.draw.rect(self.pantalla, (255, 80, 80), r, 2)
+            return
+
+        # vehículos y recursos: círculos centrados
+        color = {
+            "J": (164, 179, 53),
+            "M": (246, 154, 84),
+            "C": (243, 92, 72),
+            "A": (255, 240, 130),
+        }.get(tipo, (160, 160, 160))
+
+        pygame.draw.circle(self.pantalla, color, rect.center, radio)
+
+
+    def draw_from_tablero(self):
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = self.tablero.matriz[fila][col]
                 if celda in ("0", 0, None, ""):
                     continue
-                rect = self.cell_to_rect(col, fila)
-                color = colores.get(celda, (160,160,160))
-                pygame.draw.rect(self.pantalla, color, rect)"""
-
+                rect = self.cell_to_rect(col, fila, pad=4)
+                self.draw_item(celda, rect)
 
 

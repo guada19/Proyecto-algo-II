@@ -3,16 +3,24 @@ from src.visualization import Visualizer
 
 def main():
     tablero = Tablero(ancho=50, largo=50)  # usa tus valores reales
-    #spawn_en_base_izq(tablero, fila=3, simbolo="J")
-    #spawn_en_base_der(tablero, fila=6, simbolo="M")
+    
+    tablero.inicializar_vehiculos()
+
+    # Crear un par de recursos y minas
+    from src.resources import Resource
+    from src.mines import Mine
+
+    tablero.recursos = [
+        Resource((5, 10), 10, "disponible", "mercancia"),
+        Resource((12, 15), 10, "disponible", "persona"),
+    ]
+    tablero.minas = [
+        Mine((8, 20), "activa", 3, True),
+        Mine((14, 25), "activa", 3, True),
+    ]
+    tablero.actualizar_matriz()
     viz = Visualizer(tablero)
     viz.run()
-
-#def spawn_en_base_izq(tablero, fila, simbolo="J"):
- #   tablero.matriz[fila][0] = simbolo  # col 0 = base izquierda
-
-#def spawn_en_base_der(tablero, fila, simbolo="M"):
-  #  tablero.matriz[fila][tablero.ancho - 1] = simbolo  # col n-1 = base derecha
 
 
 if __name__ == "__main__":

@@ -68,3 +68,14 @@ class Tablero:
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
     
+    #-----Para poder verlos en la matriz-----
+    def get_elementos(self):
+        """Devuelve una lista de tuplas (tipo, x, y)."""
+        elementos = []
+        for v in self.vehiculos:
+            elementos.append((v.tipo[0], v.x, v.y))
+        for r in self.recursos:
+            elementos.append(("R", r.x, r.y))
+        for m in self.minas:
+            elementos.append(("X", m.x, m.y))
+        return elementos
