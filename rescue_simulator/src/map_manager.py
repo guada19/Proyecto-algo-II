@@ -4,6 +4,7 @@ from src.resources import *
 from src.base import *
 
 
+
 class Tablero:
     def __init__(self, ancho, largo):
         self.ancho = ancho
@@ -68,14 +69,40 @@ class Tablero:
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
     
-    #-----Para poder verlos en la matriz-----
-    def get_elementos(self):
-        """Devuelve una lista de tuplas (tipo, x, y)."""
-        elementos = []
-        for v in self.vehiculos:
-            elementos.append((v.tipo[0], v.x, v.y))
-        for r in self.recursos:
-            elementos.append(("R", r.x, r.y))
-        for m in self.minas:
-            elementos.append(("X", m.x, m.y))
-        return elementos
+import random
+
+def distribuir_elementos_en_mapa(width, height, recursos, minas):
+    """
+    Distribuye aleatoriamente recursos y minas en el mapa sin superposición.
+    :param width: Ancho del mapa
+    :param height: Alto del mapa
+    :param recursos: Lista de dicts con tipos de recursos a colocar
+    :param minas: Lista de dicts con tipos de minas a colocar
+    :return: (recursos_posicionados, minas_posicionadas)
+    """
+    posiciones_ocupadas = set()
+    recursos_posicionados = []
+    minas_posicionadas = []
+
+    def obtener_posicion_libre():
+        while True:
+            x = random.randint(0, width - 1)
+            y = random.randint(0, height - 1)
+            if (x, y) not in posiciones_ocupadas:
+                posiciones_ocupadas.add((x, y))
+                return (x, y)
+
+    for recurso in recursos:
+        pos = obtener_posicion_libre()
+        recursos_posicionados.append({**recurso, "posicion": pos})
+
+    for mina in minas:
+        pos = obtener_posicion_libre()
+        minas_posicionadas.append({**mina, "posicion": pos})
+
+    return recursos_posicionados, minas_posicionadas
+
+# Ejemplo de uso:
+# recursos = [{"tipo": "persona"}, {"tipo": "mercancia", "subtipo": "ropa"}, ...]
+# minas = [{"tipo": "O1"}, {"tipo": "T1"}, ...]
+# recursos_map, minas_map = distribuir_elementos_en_mapa(16, 16, recursos, minas)
