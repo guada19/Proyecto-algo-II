@@ -46,7 +46,7 @@ class Visualizer:
 
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
-            self.draw_from_tablero()
+            #self.draw_from_tablero()
 
 
             pygame.display.flip()
@@ -155,7 +155,7 @@ class Visualizer:
 
         return pygame.Rect(x + pad, y + pad, max(1, w - 2*pad), max(1, h - 2*pad))
 
-
+"""
     #Forma visual de los elementos (ES TEMPORAL, necesitamos que exista despues lo mejoramos)
     def draw_item(self, tipo, rect):
         # tamaño base: tomamos la altura (celda) para que en las bases no explote
@@ -191,4 +191,4 @@ class Visualizer:
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
 
-
+"""
