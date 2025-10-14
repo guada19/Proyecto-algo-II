@@ -49,6 +49,8 @@ class Tablero:
         Genera los recursos y minas, les asigna una posición aleatoria (evitando las bases) 
         y los almacena en las listas y diccionarios del tablero.
         Distribuye aleatoriamente recursos y minas en el mapa sin superposición.
+        Agregué un diccionario para poder acceder a las minas y recursos de manera más directa
+        y la añadi al tablero ya que antes estaba definida por afuera y no estaban inicializados los objetos jeje
         """
         
         self.recursos = []
