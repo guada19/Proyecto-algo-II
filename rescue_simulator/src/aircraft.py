@@ -11,6 +11,7 @@ class Vehiculo:
         self.estado = estado
         self.jugador = jugador
         self.max_viajes = max_viajes
+        self.carga_actual = []
     
     @property
     def posicion(self):
@@ -19,9 +20,22 @@ class Vehiculo:
     
     def mover(self):
         pass
-    def agarrar_recurso(self):
-        pass
     
+    def agarrar_recurso(self, tablero):
+        
+        recurso = tablero.pos_recursos.get(self.posicion)
+        
+        if recurso and recurso.estado == "disponible":
+            if (recurso.categoria in self.tipo_carga_permitida) and len(self.carga_actual) < self.capacidad_carga:
+                self.carga_actual.append(recurso)
+                recurso.recolectado()
+                self.viajes_restantes -= 1
+                del tablero.pos_recursos[self.posicion]
+
+                return True
+        
+        return False
+            
     def volver_a_la_base(self):
         pass
     
@@ -49,7 +63,7 @@ class Jeep(Vehiculo):
 
 class Moto(Vehiculo):
     def __init__(self, posicion,jugador):
-        super().__init__(tipo = "Moto", posicion = posicion, capacidad_carga = 1, viajes_restantes = 1, tipo_carga_permitida = "persona", estado = "activo", jugador = jugador, max_viajes = 1)
+        super().__init__(tipo = "Moto", posicion = posicion, capacidad_carga = 1, viajes_restantes = 1, tipo_carga_permitida = ["persona"], estado = "activo", jugador = jugador, max_viajes = 1)
 
 class Camion(Vehiculo):
     def __init__(self, posicion, jugador):

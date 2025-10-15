@@ -12,27 +12,27 @@ class Resource():
         self.estado = "destruido"
         
 class Person(Resource):
-    def __init__(self, posicion):
-        super().__init__(posicion, puntaje = 50, estado = "disponible", categoria = "persona")
+    def __init__(self):
+        super().__init__(posicion = (0,0), puntaje = 50, estado = "disponible", categoria = "persona")
 
 
 class Mercancia(Resource):
     def __init__(self, posicion, subtipo, puntaje):
-        super().__init__(posicion, puntaje = puntaje, estado = "disponible", categoria = "mercancia")
+        super().__init__(posicion = posicion, puntaje = puntaje, estado = "disponible", categoria = "mercancia")
         self.subtipo = subtipo 
         
 class Alimento(Mercancia):
-    def __init__(self, posicion):
-        super().__init__(posicion, subtipo = "alimento", puntaje = 10)
+    def __init__(self):
+        super().__init__(posicion = (0,0), subtipo = "alimento", puntaje = 10)
 
 class Ropa(Mercancia):
-    def __init__(self, posicion):
-        super().__init__(posicion, subtipo = "ropa", puntaje = 5)
+    def __init__(self):
+        super().__init__(posicion = (0,0), subtipo = "ropa", puntaje = 5)
 
 class Medicamento(Mercancia):
-    def __init__(self, posicion):
-        super().__init__(posicion, subtipo = "medicamento", puntaje = 20)
+    def __init__(self):
+        super().__init__(posicion = (0,0), subtipo = "medicamento", puntaje = 20)
 
 class Armamento(Mercancia):
-    def __init__(self, posicion):
-        super().__init__(posicion, subtipo = "armamento", puntaje = 50)
+    def __init__(self):
+        super().__init__(posicion = (0,0), subtipo = "armamento", puntaje = 50)
