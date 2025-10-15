@@ -46,7 +46,7 @@ class Visualizer:
 
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
-            #self.draw_from_tablero()
+            self.draw_from_tablero()
 
 
             pygame.display.flip()
@@ -155,34 +155,50 @@ class Visualizer:
 
         return pygame.Rect(x + pad, y + pad, max(1, w - 2*pad), max(1, h - 2*pad))
 
-"""
-    #Forma visual de los elementos (ES TEMPORAL, necesitamos que exista despues lo mejoramos)
+    # Forma visual TEMPORAL de los elementos
     def draw_item(self, tipo, rect):
-        # tamaño base: tomamos la altura (celda) para que en las bases no explote
-        base = min(rect.width, rect.height)          # o directamente: base = rect.height
-        radio = max(3, base // 2 - 2)
-        lado  = max(4, base - 4)
+        """Dibuja un item en 'rect' con formas simples:
+        - R: círculo verde
+        - X: cuadrado rojo
+        - J/M/C/A: círculo de color por vehículo
+        """
+        base_h = rect.height
+        radio  = max(5, int(base_h * 0.45))
+        lado   = max(6, int(base_h * 0.90))
 
-        if tipo == "X":  # mina: cuadrado con borde
-            r = pygame.Rect(rect.x + (rect.width - lado)//2,
-                            rect.y + (rect.height - lado)//2,
+        if tipo in ("01", "02", "T1", "T2", "G1"):
+            colores_mina = {
+                "01": (121, 82, 39),      
+                "02": (119, 40, 39),    
+                "T1": (39, 118, 119),    
+                "T2": (118, 119, 39),    
+                "G1": (39, 78, 119),    
+            }
+            color = colores_mina.get(tipo, (200, 0, 0))
+            r = pygame.Rect(rect.centerx - lado // 2,
+                            rect.centery - lado // 2,
                             lado, lado)
-            pygame.draw.rect(self.pantalla, (200, 0, 0), r)
-            pygame.draw.rect(self.pantalla, (255, 80, 80), r, 2)
+            pygame.draw.rect(self.pantalla, color, r)
+            pygame.draw.rect(self.pantalla, (25, 25, 25), r, 1)
             return
 
-        # vehículos y recursos: círculos centrados
         color = {
-            "J": (164, 179, 53),
-            "M": (246, 154, 84),
-            "C": (243, 92, 72),
-            "A": (255, 240, 130),
+            "J": (164, 179,  53),   # Jeep
+            "M": (246, 154,  84),   # Moto
+            "C": (243,  92,  72),   # Camión
+            "A": (255, 240, 130),   # Auto
+            "PER": (204, 153, 179), # Persona
+            "m": (204, 178, 153),   # Medicamento
+            "a": (179, 204, 153),   # Armamento
+            "r": (153, 179, 204),   # ropa
         }.get(tipo, (160, 160, 160))
 
         pygame.draw.circle(self.pantalla, color, rect.center, radio)
+        pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)  # borde fino
 
 
     def draw_from_tablero(self):
+        """Pinta todo lo no-vacío de tablero.matriz usando cell_to_rect(col,fila)."""
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = self.tablero.matriz[fila][col]
@@ -190,5 +206,3 @@ class Visualizer:
                     continue
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
-
-"""

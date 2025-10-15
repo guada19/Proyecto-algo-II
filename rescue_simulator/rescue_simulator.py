@@ -1,11 +1,40 @@
+import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
 
 def main():
     tablero = Tablero(ancho=20, largo=20)  # usa tus valores reales
-    viz = Visualizer(tablero)
-    viz.run()
     tablero.initialization_simulation()
+
+    viz = Visualizer(tablero)
+    
+    # 3) loop de visualización
+    running = True
+    while running:
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                running = False
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_r:
+                    # regenerar mapa: recursos/minas nuevas
+                    tablero.inicializar_elementos_aleatoriamente()
+                    tablero.actualizar_matriz()
+                elif e.key == pygame.K_v:
+                    # re-spawn de vehículos (opcional)
+                    tablero.inicializar_vehiculos()
+                    tablero.actualizar_matriz()
+
+        # dibujar frame
+        viz.pantalla.fill(viz.color_fondo)
+        viz.draw_grid()
+        viz.draw_from_tablero()   # ← pinta R/X/J/M/C/A según matriz
+        pygame.display.flip()
+        viz.clock.tick(60)
+
+    pygame.quit()    
+
+    viz.run()
+    
     
     
 
@@ -13,4 +42,3 @@ if __name__ == "__main__":
     main()
 
 
-    
