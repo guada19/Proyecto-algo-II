@@ -7,6 +7,7 @@ font_1 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "RubikDi
 font_2 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "Galindo-Regular.ttf")
 font_3 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "Sixtyfour-Regular.ttf")
 
+
 #Clase que muestra todo en pantalla
 class Visualizer:
     """
@@ -43,6 +44,35 @@ class Visualizer:
 
 
         self._compute_layout(margen = 40)
+
+        # --- cargar sprites ---
+        self._cargar_sprites()
+
+    def _cargar_sprites(self):
+        self.img_cache = {}
+
+        def load(name):
+            ruta = os.path.join(os.path.dirname(__file__), "..", "data", "imagenes", name)
+            if not os.path.exists(ruta):
+                print(f"⚠️ Archivo no encontrado: {ruta}")
+                return None
+            try:
+                # ahora sí: convert_alpha, ya hay display
+                return pygame.image.load(ruta).convert_alpha()
+            except Exception as e:
+                print(f"⚠️ No se pudo cargar {name}: {e} ({ruta})")
+                return None
+
+        self.img_cache["J"] = load("jeep.png")
+        self.img_cache["M"] = load("moto.png")
+        self.img_cache["C"] = load("camion.png")
+        self.img_cache["A"] = load("auto.png")
+        self.img_cache["r"] = load("ropa.png")
+        self.img_cache["c"] = load("comida.png")
+        self.img_cache["m"] = load("medicina.png")
+        self.img_cache["PER"] = load("hombre.png")
+        self.img_cache["a"] = load("armamento.png")
+
 
     #Bucle que mantiene el juego corriendo
     def run(self):
@@ -193,7 +223,31 @@ class Visualizer:
         base_h = rect.height
         radio  = max(5, int(base_h * 0.45))
         lado   = max(6, int(base_h * 0.90))
+        pad = 3
 
+        # ---------- VEHÍCULOS (ahora con imagen) ----------
+        img = self.img_cache.get(tipo)
+        if img:  # si hay sprite cargado para J/M/C/A
+            iw, ih = img.get_size()
+
+            # tamaño máximo disponible (respetando padding)
+            max_w = max(1, rect.width  - 2*pad)
+            max_h = max(1, rect.height - 2*pad)
+
+            # factor de escala que NO deforma
+            s = min(max_w / iw, max_h / ih)
+            new_w = max(1, int(iw * s))
+            new_h = max(1, int(ih * s))
+
+            sprite = pygame.transform.smoothscale(img, (new_w, new_h))
+
+            # centrar dentro de la celda
+            x = rect.centerx - new_w // 2
+            y = rect.centery - new_h // 2
+            self.pantalla.blit(sprite, (x, y))
+            return  
+            
+        # ---------- MINAS ----------
         if tipo in ("01", "02", "T1", "T2", "G1"):
             colores_mina = {
                 "01": (121, 82, 39),      
@@ -210,19 +264,38 @@ class Visualizer:
             pygame.draw.rect(self.pantalla, (25, 25, 25), r, 1)
             return
 
+        # ---------- RECURSOS (con imagenes (las que hay)) Y fallback ----------
+        if tipo in self.img_cache and self.img_cache[tipo]:
+            img = self.img_cache[tipo]
+            iw, ih = img.get_size()
+            pad = 3
+            max_w = rect.width - 2*pad
+            max_h = rect.height - 2*pad
+            s = min(max_w / iw, max_h / ih)
+            new_w = int(iw * s)
+            new_h = int(ih * s)
+            sprite = pygame.transform.smoothscale(img, (new_w, new_h))
+            x = rect.centerx - new_w // 2
+            y = rect.centery - new_h // 2
+            self.pantalla.blit(sprite, (x, y))
+            return
+        
         color = {
-            "J": (164, 179,  53),   # Jeep
-            "M": (246, 154,  84),   # Moto
-            "C": (243,  92,  72),   # Camión
-            "A": (255, 240, 130),   # Auto
+            #"J": (164, 179,  53),   # Jeep
+            #"M": (246, 154,  84),   # Moto
+            #"C": (243,  92,  72),   # Camión
+            #"A": (255, 240, 130),   # Auto
             "PER": (204, 153, 179), # Persona
             "m": (204, 178, 153),   # Medicamento
             "a": (179, 204, 153),   # Armamento
+            "c": (204, 153, 179),   # comida
             "r": (153, 179, 204),   # ropa
         }.get(tipo, (160, 160, 160))
 
         pygame.draw.circle(self.pantalla, color, rect.center, radio)
         pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)  # borde fino
+        
+        
 
 
     def draw_from_tablero(self):

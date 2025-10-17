@@ -23,7 +23,7 @@ class Mercancia(Resource):
         
 class Alimento(Mercancia):
     def __init__(self):
-        super().__init__(posicion = (0,0), subtipo = "alimento", puntaje = 10)
+        super().__init__(posicion = (0,0), subtipo = "comida", puntaje = 10)
 
 class Ropa(Mercancia):
     def __init__(self):
