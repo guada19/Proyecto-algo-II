@@ -1,8 +1,11 @@
 import pygame
 pygame.init()
+import os
 
-
-
+# ruta relativa al archivo actual
+font_1 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "RubikDirt-Regular.ttf")
+font_2 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "Galindo-Regular.ttf")
+font_3 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "Sixtyfour-Regular.ttf")
 
 #Clase que muestra todo en pantalla
 class Visualizer:
@@ -21,18 +24,23 @@ class Visualizer:
         self.color_panel = (143, 125, 110)    # bases
         self.color_grid_bg = (149, 135, 122)  #fondo tablero
         self.color_borde = (57, 50, 44)      # bordes negros
+        self.color_titulo = (210, 180, 140)  #titulos
+        # --- títulos y header ---
+        self.title = "Rescue Simulator"   # nombre
+        self.header_h = 40                      # alto de la franja superior
 
         self.tablero = tablero
         self.ancho = ancho
         self.alto = alto
 
         pygame.init()
+        pygame.font.init()
         self.pantalla = pygame.display.set_mode((self.ancho, self.alto))
+        self.font_titulo = pygame.font.Font(font_1, 35)
+        self.font_bases = pygame.font.Font(font_2, 18)
         pygame.display.set_caption("Simulador - Tablero")
         self.clock = pygame.time.Clock()
 
-        pygame.font.init()
-        self.font = pygame.font.SysFont(None, 24, bold=False)  # para "Base J1/J2"
 
         self._compute_layout(margen = 40)
 
@@ -63,7 +71,7 @@ class Visualizer:
 
         # área total util (dentro del margen)
         avail_w = self.ancho - 2*self.margen
-        avail_h = self.alto  - 2*self.margen
+        avail_h = self.alto  - 2*self.margen - self.header_h
 
         # columnas solo del centro (excluye las de base lógicas)
         central_cols = max(self.columnas - 2, 1)
@@ -79,7 +87,7 @@ class Visualizer:
         # origen para centrar todo (panel izq + grilla + panel der)
         total_w = self.base_w*2 + self.central_w
         self.gx = (self.ancho - total_w) // 2
-        self.gy = (self.alto  - self.central_h) // 2
+        self.gy = self.margen + self.header_h + (avail_h - self.central_h) // 2
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
@@ -93,17 +101,37 @@ class Visualizer:
         central_rect = (central_x, gy, self.central_w, h)
         base_j2  = (central_x + self.central_w, gy, self.base_w, h) #Base jugador 2
 
+        # ---------- HEADER ----------
+        header_rect = (self.margen, self.margen, self.ancho - 2*self.margen, self.header_h)
+        # fondo del header (opcional, podés usar self.color_fondo para transparente)
+        pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 0, border_radius=4)
+        pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 2, border_radius=4)
+
+        # título centrado
+        title_surf = self.font_titulo.render(self.title, True, self.color_titulo)
+        title_x = header_rect[0] + (header_rect[2] - title_surf.get_width()) // 2
+        title_y = header_rect[1] + (header_rect[3] - title_surf.get_height()) // 2
+        self.pantalla.blit(title_surf, (title_x, title_y))
+
+        # títulos “Base J1/J2”
+        # etiquetas de bases, ubicadas en el header sobre cada panel
+        base1_surf = self.font_bases.render("Base J1", True, self.color_titulo)
+        base2_surf = self.font_bases.render("Base J2", True, self.color_titulo)
+
+        # centro en X de cada panel lateral
+        base1_cx = base_j1[0] + base_j1[2] // 2
+        base2_cx = base_j2[0] + base_j2[2] // 2
+        base_text_y = header_rect[1] + (header_rect[3] - base1_surf.get_height()) // 2    
+        
+        self.pantalla.blit(base1_surf, (base1_cx - base1_surf.get_width() // 2, base_text_y))
+        self.pantalla.blit(base2_surf, (base2_cx - base2_surf.get_width() // 2, base_text_y))
+
+
         # paneles bases
         pygame.draw.rect(self.pantalla, self.color_panel, base_j1, 0, border_radius=2)
         pygame.draw.rect(self.pantalla, self.color_panel, base_j2, 0, border_radius=2)
         pygame.draw.rect(self.pantalla, self.color_borde, base_j1, 3, border_radius=2)
         pygame.draw.rect(self.pantalla, self.color_borde, base_j2, 3, border_radius=2)
-
-        # títulos “Base J1/J2”
-        txt1 = self.font.render("Base J1", True, self.color_borde)
-        txt2 = self.font.render("Base J2", True, self.color_borde)
-        self.pantalla.blit(txt1, (base_j1[0] + 10, base_j1[1] + 10))
-        self.pantalla.blit(txt2, (base_j2[0] + 10, base_j2[1] + 10))
 
         # área de grilla (fondo + borde)
         pygame.draw.rect(self.pantalla, self.color_grid_bg, central_rect, 0)
@@ -206,3 +234,4 @@ class Visualizer:
                     continue
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
+    
