@@ -63,14 +63,14 @@ class Visualizer:
                 print(f"⚠️ No se pudo cargar {name}: {e} ({ruta})")
                 return None
 
-        self.img_cache["J"] = load("jeep.png")
-        self.img_cache["M"] = load("moto.png")
-        self.img_cache["C"] = load("camion.png")
-        self.img_cache["A"] = load("auto.png")
+        self.img_cache["J"] = load("jeep1.png")
+        self.img_cache["M"] = load("moto1.png")
+        self.img_cache["C"] = load("camion1.png") #Momentaneo, pequeña discusion con gpt
+        self.img_cache["A"] = load("auto1.png")
         self.img_cache["r"] = load("ropa.png")
         self.img_cache["c"] = load("comida.png")
         self.img_cache["m"] = load("medicina.png")
-        self.img_cache["PER"] = load("hombre.png")
+        self.img_cache["PER"] = load("persona.png")
         self.img_cache["a"] = load("armamento.png")
 
 
@@ -223,25 +223,36 @@ class Visualizer:
         base_h = rect.height
         radio  = max(5, int(base_h * 0.45))
         lado   = max(6, int(base_h * 0.90))
-        pad = 3
+        pad = 2
 
-        # ---------- VEHÍCULOS (ahora con imagen) ----------
+        # FACTORES DE ESCALA 
+        escala_vehiculo = 2
+        escala_persona  = 1.7
+        escala_recurso  = 1.2
+
+        # ---------- VEHÍCULOS, PERSONAS, RECURSOS (con imagen) ----------
         img = self.img_cache.get(tipo)
-        if img:  # si hay sprite cargado para J/M/C/A
+        if img:
             iw, ih = img.get_size()
 
-            # tamaño máximo disponible (respetando padding)
-            max_w = max(1, rect.width  - 2*pad)
-            max_h = max(1, rect.height - 2*pad)
+            # Elegir factor según tipo
+            if tipo in ("J", "M", "C", "A"):
+                escala = escala_vehiculo
+            elif tipo.startswith("PER"):
+                escala = escala_persona
+            else:
+                escala = escala_recurso
 
-            # factor de escala que NO deforma
-            s = min(max_w / iw, max_h / ih)
-            new_w = max(1, int(iw * s))
-            new_h = max(1, int(ih * s))
+            # tamaño máximo disponible dentro de la celda
+            max_w = rect.width
+            max_h = rect.height
+            s = min((max_w * escala) / iw, (max_h * escala) / ih)
 
+            new_w = int(iw * s)
+            new_h = int(ih * s)
             sprite = pygame.transform.smoothscale(img, (new_w, new_h))
 
-            # centrar dentro de la celda
+            # centrar
             x = rect.centerx - new_w // 2
             y = rect.centery - new_h // 2
             self.pantalla.blit(sprite, (x, y))
@@ -263,37 +274,8 @@ class Visualizer:
             pygame.draw.rect(self.pantalla, color, r)
             pygame.draw.rect(self.pantalla, (25, 25, 25), r, 1)
             return
-
-        # ---------- RECURSOS (con imagenes (las que hay)) Y fallback ----------
-        if tipo in self.img_cache and self.img_cache[tipo]:
-            img = self.img_cache[tipo]
-            iw, ih = img.get_size()
-            pad = 3
-            max_w = rect.width - 2*pad
-            max_h = rect.height - 2*pad
-            s = min(max_w / iw, max_h / ih)
-            new_w = int(iw * s)
-            new_h = int(ih * s)
-            sprite = pygame.transform.smoothscale(img, (new_w, new_h))
-            x = rect.centerx - new_w // 2
-            y = rect.centery - new_h // 2
-            self.pantalla.blit(sprite, (x, y))
-            return
+      
         
-        color = {
-            #"J": (164, 179,  53),   # Jeep
-            #"M": (246, 154,  84),   # Moto
-            #"C": (243,  92,  72),   # Camión
-            #"A": (255, 240, 130),   # Auto
-            "PER": (204, 153, 179), # Persona
-            "m": (204, 178, 153),   # Medicamento
-            "a": (179, 204, 153),   # Armamento
-            "c": (204, 153, 179),   # comida
-            "r": (153, 179, 204),   # ropa
-        }.get(tipo, (160, 160, 160))
-
-        pygame.draw.circle(self.pantalla, color, rect.center, radio)
-        pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)  # borde fino
         
         
 

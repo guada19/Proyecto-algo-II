@@ -24,7 +24,7 @@ def main():
                     tablero.inicializar_vehiculos()
                     tablero.actualizar_matriz()
 
-        # dibujar frame
+        # dibujar frames
         viz.pantalla.fill(viz.color_fondo)
         viz.draw_grid()
         viz.draw_from_tablero()   # ← pinta R/X/J/M/C/A según matriz
