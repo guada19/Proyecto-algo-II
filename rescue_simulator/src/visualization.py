@@ -63,10 +63,10 @@ class Visualizer:
                 print(f"⚠️ No se pudo cargar {name}: {e} ({ruta})")
                 return None
 
-        self.img_cache["J"] = load("jeep1.png")
-        self.img_cache["M"] = load("moto1.png")
-        self.img_cache["C"] = load("camion1.png") #Momentaneo, pequeña discusion con gpt
-        self.img_cache["A"] = load("auto1.png")
+        self.img_cache["J"] = load("jeep2.png")
+        self.img_cache["M"] = load("moto2.png")
+        self.img_cache["C"] = load("camion2.png") #Momentaneo, pequeña discusion con gpt
+        self.img_cache["A"] = load("auto2.png")
         self.img_cache["r"] = load("ropa.png")
         self.img_cache["c"] = load("comida.png")
         self.img_cache["m"] = load("medicina.png")
