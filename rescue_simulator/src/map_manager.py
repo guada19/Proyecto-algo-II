@@ -21,6 +21,10 @@ class Tablero:
         self.base_jugador1 = Base(ancho, largo, 1, [])
         self.base_jugador2 = Base(ancho, largo, 2, [])
         self.bases = {1: self.base_jugador1, 2: self.base_jugador2}
+
+        #Puntaje por jugador (izq = J1, der = J2)
+        self.puntaje = {"J1": 0, "J2": 0} #Contador de puntos de cada jugador
+        self.entregas = {"J1": 0, "J2": 0} #Contador de ítems entregados
     
     def _crear_elementos(self):
         """Genera y retorna la lista de 65 objetos Resource y Mine."""
@@ -161,3 +165,61 @@ class Tablero:
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
 
+
+    #función para saber si la columna del tablero es base
+    def es_base(self, col):
+        if col == 0:
+            return "J1"
+        if col == self.ancho - 1:
+            return "J2"
+        return None
+    
+
+    #función para saber cuantos puntos vale cada item entregado
+    def puntos_por (self, item):
+        categoria = getattr(item, "categoria", None)
+        subtipo = getattr(item, "subtipo", None)
+
+        if categoria == "persona":
+            return 50
+        
+        if categoria == "mercancia":
+            tabla = {
+            "alimento": 10,
+            "ropa": 5,
+            "medicamento": 20,
+            "armamento": 50,
+            }
+            if subtipo:
+                return tabla.get(subtipo.lower(), 10)
+            return 10
+    
+        return 5
+
+
+    #función que registra la entrega cuando llega a la base el vehiculo
+    def registrar_entrega(self, vehiculo):
+        #verifica si el vehiculo está en una base
+        x, y = vehiculo.posicion
+        base = self.es_base(y)
+        if base is None:
+            return
+        
+        # Verificar base y jugador correcto
+        if vehiculo.jugador != base:
+            return
+
+        if not vehiculo.carga_actual:
+            return  # No tiene carga
+
+        total = 0
+        for item in vehiculo.carga_actual:
+            total += self.puntos_por(item)
+
+        self.puntaje[base] += total
+        self.entregas[base] += len(vehiculo.carga_actual)
+
+        vehiculo.carga_actual.clear()
+        print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
+
+        

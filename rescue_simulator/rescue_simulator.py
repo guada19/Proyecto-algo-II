@@ -2,6 +2,7 @@ import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
 
+
 def main():
     tablero = Tablero(ancho=20, largo=20)  # usa tus valores reales
     tablero.initialization_simulation()

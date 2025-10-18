@@ -36,8 +36,20 @@ class Vehiculo:
         
         return False
             
-    def volver_a_la_base(self):
-        pass
+    def volver_a_la_base(self, tablero):
+        # si la base del jugador es la izquierda
+        if self.jugador == "J1":
+            if self.y > 0:
+                self.y -= 1
+        # si la base del jugador es la derecha
+        elif self.jugador == "J2":
+            if self.y < tablero.ancho - 1:
+                self.y += 1
+
+        # Si ya está en la base, entrega
+        if self.y == 0 or self.y == tablero.ancho - 1:
+            tablero.registrar_entrega(self)
+    
     
     def detectar_colision(self):
         pass
