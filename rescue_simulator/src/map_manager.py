@@ -2,6 +2,7 @@ from src.aircraft import *
 from src.mines import *
 from src.resources import *
 from src.base import *
+from config.strategies.player2_strategies import Estrategia
 import random
 
 
@@ -113,17 +114,37 @@ class Tablero:
                     self.vehiculos.append(nuevo_vehiculo) 
         self.actualizar_matriz()
 
+    #-----------------------------------------------------------------------------------------------------------
+    """
+    esto es solo para probar que el movimiento funcione de manera correcta, no sé en donde va a estar lo de las colisiones
+    así que lo puse acá nada más para probar no es nada muy interesante después se borra
+    """
+    def colision_minas(self, x, y):
+    # Devuelve True si la celda está dentro del radio de alguna mina
+    # Para simplificar, asumimos radio=1
+        for mx, my in self.pos_minas:
+            if abs(mx - x) <= 1 and abs(my - y) <= 1:
+                return True
+        return False
+
+    def colision_vehiculos(self, x, y):
+        # Para este ejemplo, asumimos que no hay otros vehículos
+        return False
+    #------------------------------------------------------------------------------------------------------------
     
     def initialization_simulation(self):
         self.inicializar_elementos_aleatoriamente()
         self.inicializar_vehiculos()
         self.actualizar_matriz()
         self.mostrar_tablero()
-     
+        
          
     def start_simulation(self):
         #Acá es donde cada jugador debería ejecutar su propia estrategia
-        pass
+        estrategia_j2 = Estrategia(self.bases[2].jugador, self.bases[2], self)
+        self.bases[2].asignar_estrategia(estrategia_j2)
+        estrategia_j2.ejecutar_estrategia()
+        
 
     def actualizar_matriz(self):
         # 1. Limpiar matriz
@@ -141,7 +162,7 @@ class Tablero:
             if r.estado == "disponible":
                 x, y = pos
                 if 0 <= x < self.largo and 0 <= y < self.ancho:
-                    self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
+                    self.matriz[x][y] = 'P' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
         for v in self.vehiculos:
@@ -152,7 +173,12 @@ class Tablero:
     def actualizar_matriz_parcial(self):
         for v in self.vehiculos:
             x_ant, y_ant = v.posicion_anterior
-            self.matriz[x_ant][y_ant] = "0"
+            if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
+                # El recurso todavía está ahí, no borramos nada
+                pass
+            else:
+                self.matriz[x_ant][y_ant] = "0"
+        
         for v in self.vehiculos:
             x, y = v.posicion
             self.matriz[x][y] = v.tipo[0]
@@ -160,4 +186,10 @@ class Tablero:
     def mostrar_tablero(self):
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
+        
+        print("")
+        print("")
+        print("")
+        print("")
+
 

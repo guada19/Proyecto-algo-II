@@ -5,6 +5,7 @@ class Vehiculo:
     def __init__(self, tipo, posicion, capacidad_carga, viajes_restantes, tipo_carga_permitida, estado, jugador, max_viajes):
         self.tipo = tipo
         self.x, self.y = posicion
+        self.posicion_anterior = self.posicion
         self.capacidad_carga = capacidad_carga
         self.viajes_restantes = viajes_restantes
         self.tipo_carga_permitida = tipo_carga_permitida
@@ -18,8 +19,14 @@ class Vehiculo:
         #retornar la posición como tupla
         return (self.x, self.y)
     
-    def mover(self):
-        pass
+    @posicion.setter
+        #propiedad que permite cambiarle la posición al veículo
+    def posicion(self, nueva_pos):
+        self.x, self.y = nueva_pos
+    
+    def mover(self, pos_final):
+        self.posicion_anterior = self.posicion
+        self.posicion = pos_final
     
     def agarrar_recurso(self, tablero):
         
@@ -31,7 +38,7 @@ class Vehiculo:
                 recurso.recolectado()
                 self.viajes_restantes -= 1
                 del tablero.pos_recursos[self.posicion]
-
+                print(f"{self.tipo} del jugador {self.jugador} recogió el recurso en {self.posicion}")
                 return True
         
         return False
@@ -45,22 +52,23 @@ class Vehiculo:
     def destruir(self):
         #Marca el vehículo como destruido.
         self.estado = "destruido"
-
-    def ejecutar_estrategia(self):
+    
+    
+    """
+    Esta funcion ya no la veo como útil porque la estrategia está en cada uno de los jugadores
+    así que los vehiculos no ejecutan una estrategia sino que se mueven como el jugador pensó la estrategia
+        def ejecutar_estrategia(self):
         #Acá habría que relacionarlo con la clase jugador accediendo a self.jugador
         #y que cada vehículo tenga su propio método con un @override
-        if self.estado == "activo": 
-            self.x += 1
-            if self.y == 0:
-                self.y +=1
-            elif self.y == 15:
-                self.y -= 1
+        #Por ahora es un método abstracto
+        pass
     
+    """
 
 class Jeep(Vehiculo):
     def __init__(self, posicion, jugador):
         super().__init__(tipo = "Jeep", posicion = posicion, capacidad_carga = 2, viajes_restantes = 2, tipo_carga_permitida = ["persona", "mercancia"], estado = "activo", jugador = jugador, max_viajes = 2)
-
+    
 class Moto(Vehiculo):
     def __init__(self, posicion,jugador):
         super().__init__(tipo = "Moto", posicion = posicion, capacidad_carga = 1, viajes_restantes = 1, tipo_carga_permitida = ["persona"], estado = "activo", jugador = jugador, max_viajes = 1)
