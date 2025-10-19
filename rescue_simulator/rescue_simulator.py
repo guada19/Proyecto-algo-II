@@ -34,7 +34,7 @@ def main():
 
     pygame.quit()    
 
-    viz.run()
+    #viz.run()
     
     
     
