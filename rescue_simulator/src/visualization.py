@@ -84,6 +84,16 @@ class Visualizer:
 
         pygame.init()
         pygame.font.init()
+        # Inicializar mixer para reproducir sonidos (fallar silenciosamente si no disponible)
+        self.collision_sound = None
+        try:
+            pygame.mixer.init()
+            sound_path = os.path.join(os.path.dirname(__file__), "..", "data", "sounds", "collision.wav")
+            if os.path.exists(sound_path):
+                self.collision_sound = pygame.mixer.Sound(sound_path)
+        except Exception:
+            # no detener ejecución si mixer falla o archivo no existe
+            self.collision_sound = None
         self.pantalla = pygame.display.set_mode((self.ancho, self.alto))
         self.font_titulo = pygame.font.Font(font_1, 35)
         self.font_bases = pygame.font.Font(font_2, 18)
@@ -99,65 +109,95 @@ class Visualizer:
         self.buttons = self._create_buttons()
 
     def _create_buttons(self):
-        """Crea los botones de control para la simulación. (Punto 4 y 5)"""
-        button_w = 110  # Aumentado para texto más largo
+        """Crea los botones de control y administra su habilitación según estado."""
+        button_w = 110
         button_h = 30
         spacing = 8
-        
-        # 6 botones: INIT, PAUSE/RESUME, STOP, <<, >>, QUIT
+
         total_buttons_w = 6 * button_w + 5 * spacing
-        start_x = (self.ancho - total_buttons_w) // 2 
-        start_y = self.margen + self.header_h + 10 
+        start_x = (self.ancho - total_buttons_w) // 2
+        start_y = self.margen + self.header_h + 10
 
         buttons = []
         x = start_x
 
-        # Creamos INIT sin acción primero para poder referenciar al botón y deshabilitarlo
-        init_btn = Button(x, start_y, button_w, button_h, "INIT", 
-                          self.color_button_default, self.color_button_hover, 
-                          action=None)
-        # acción: iniciar simulación y deshabilitar INIT hasta que se presione STOP
+        # INIT (habilitado inicialmente)
+        init_btn = Button(x, start_y, button_w, button_h, "INIT",
+                          self.color_button_default, self.color_button_hover, action=None)
         def _init_action():
+            # iniciar simulación
             self.tablero.set_sim_state("init")
+            # UI: INIT deshabilitado, PAUSE y STOP habilitados, PREV/NEXT deshabilitados
             init_btn.disable()
+            pause_btn.enable()
+            stop_btn.enable()
+            prev_btn.disable()
+            next_btn.disable()
         init_btn.action = _init_action
         buttons.append(init_btn)
-
-        x += button_w + spacing
-        
-        buttons.append(Button(x, start_y, button_w, button_h, "PAUSE/RESUME", 
-                              self.color_button_default, self.color_button_hover, 
-                              lambda: self.tablero.toggle_sim_state(), font_size=12)) # Letra más pequeña para que encaje
         x += button_w + spacing
 
-        # STOP debe re-habilitar INIT
-        stop_btn = Button(x, start_y, button_w, button_h, "STOP", 
+        # PAUSE/RESUME (deshabilitado hasta INIT)
+        pause_btn = Button(x, start_y, button_w, button_h, "PAUSE/RESUME",
+                           self.color_button_default, self.color_button_hover, action=None, font_size=12)
+        def _pause_action():
+            # alternar estado en el modelo
+            self.tablero.toggle_sim_state()
+            # Si ahora está en pausa, habilitar prev/next; si está corriendo, deshabilitarlos.
+            if self.tablero.sim_state == "paused":
+                prev_btn.enable()
+                next_btn.enable()
+            else:
+                prev_btn.disable()
+                next_btn.disable()
+        pause_btn.action = _pause_action
+        buttons.append(pause_btn)
+        x += button_w + spacing
+
+        # STOP (deshabilitado hasta INIT)
+        stop_btn = Button(x, start_y, button_w, button_h, "STOP",
                           self.color_button_default, self.color_button_hover, action=None)
         def _stop_action():
             self.tablero.set_sim_state("stopped")
-            # re-habilitar INIT cuando se detenga el juego
+            # UI: INIT habilitado, PAUSE/STOP deshabilitados, PREV/NEXT deshabilitados
             init_btn.enable()
+            pause_btn.disable()
+            stop_btn.disable()
+            prev_btn.disable()
+            next_btn.disable()
         stop_btn.action = _stop_action
         buttons.append(stop_btn)
         x += button_w + spacing
-        
-        buttons.append(Button(x, start_y, button_w, button_h, "<< (Prev)", 
-                              self.color_button_default, self.color_button_hover, 
-                              lambda: self.tablero.prev_frame()))
-        x += button_w + spacing
-        
-        buttons.append(Button(x, start_y, button_w, button_h, ">> (Next)", 
-                              self.color_button_default, self.color_button_hover, 
-                              lambda: self.tablero.next_frame()))
+
+        # PREV (<<) - deshabilitado hasta pausa
+        prev_btn = Button(x, start_y, button_w, button_h, "<< (Prev)",
+                          self.color_button_default, self.color_button_hover,
+                          lambda: self.tablero.prev_frame())
+        buttons.append(prev_btn)
         x += button_w + spacing
 
-        buttons.append(Button(x, start_y, button_w, button_h, "QUIT", 
-                              self.color_quit, (255, 0, 0), 
-                              lambda: pygame.event.post(pygame.event.Event(pygame.QUIT)))) # Botón de salida (Punto 5)
+        # NEXT (>>) - deshabilitado hasta pausa
+        next_btn = Button(x, start_y, button_w, button_h, ">> (Next)",
+                          self.color_button_default, self.color_button_hover,
+                          lambda: self.tablero.next_frame())
+        buttons.append(next_btn)
+        x += button_w + spacing
 
-        # Se ajusta la posición vertical de la grilla principal
-        self.buttons_h = button_h + spacing 
-        self.gy += self.buttons_h 
+        # QUIT (siempre habilitado)
+        buttons.append(Button(x, start_y, button_w, button_h, "QUIT",
+                              self.color_quit, (255, 0, 0),
+                              lambda: pygame.event.post(pygame.event.Event(pygame.QUIT))))
+
+        # Ajustar layout vertical
+        self.buttons_h = button_h + spacing
+        self.gy += self.buttons_h
+
+        # ESTADOS INICIALES: antes de presionar INIT o después de STOP
+        # pause, stop, prev, next deben estar deshabilitados
+        pause_btn.disable()
+        stop_btn.disable()
+        prev_btn.disable()
+        next_btn.disable()
 
         return buttons
 
@@ -361,6 +401,92 @@ class Visualizer:
 
 
     def draw_from_tablero(self):
+        """Dibuja primero los radios de minas (dentro de la cuadricula) y luego los items."""
+        # rect de la zona cuadriculada central (para recortar dibujo)
+        central_x = self.gx + self.base_w
+        central_rect = pygame.Rect(central_x, self.gy, self.central_w, self.central_h)
+        # recortar dibujado a la grilla central para no pintar fuera
+        old_clip = self.pantalla.get_clip()
+        self.pantalla.set_clip(central_rect)
+
+        # Dibujar alcance de minas (solo minas activas)
+        for m in getattr(self.tablero, "minas", []):
+            if getattr(m, "estado", None) != "activa":
+                continue
+            fila, col = m.x, m.y
+            # verificar que la mina esté dentro de la matriz
+            if not (0 <= fila < self.filas and 0 <= col < self.columnas):
+                continue
+
+            cell_rect = self.cell_to_rect(col=col, fila=fila, pad=0)
+
+            # Mines circulares (O1/O2): dibujar círculo translúcido con radio en celdas
+            if getattr(m, "tipo", "") in ("01", "02"):
+                radius_cells = int(getattr(m, "radio", 0))
+                radius_px = max(1, radius_cells * self.celda)
+                surf_size = radius_px * 2 + 4
+                s = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+                # color translúcido (amarillo/orange)
+                pygame.draw.circle(s, (255, 200, 0, 70), (surf_size//2, surf_size//2), radius_px)
+                # borde visible sin transparencia
+                pygame.draw.circle(s, (200, 120, 0, 220), (surf_size//2, surf_size//2), radius_px, 2)
+                blit_pos = (cell_rect.centerx - surf_size//2, cell_rect.centery - surf_size//2)
+                self.pantalla.blit(s, blit_pos)
+
+            # Mina G1: mismo tratamiento circular, pero aparece/desaparece cada 5 pasos
+            elif getattr(m, "tipo", "") == "G1":
+                # decidir visibilidad en función del contador de pasos del tablero:
+                # visible durante 5 pasos, luego invisible 5 pasos, y así sucesivamente
+                step = getattr(self.tablero, "step_count", 0)
+                visible = ((step // 5) % 2) == 0
+                if not visible:
+                    # no dibujar la G1 cuando está en la fase invisible
+                    continue
+                radius_cells = int(getattr(m, "radio", getattr(m, "r", 0)))
+                radius_px = max(1, radius_cells * self.celda)
+                surf_size = radius_px * 2 + 4
+                s = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+                # color translúcido (similar a minas circulares)
+                pygame.draw.circle(s, (255, 200, 0, 70), (surf_size//2, surf_size//2), radius_px)
+                pygame.draw.circle(s, (200, 120, 0, 220), (surf_size//2, surf_size//2), radius_px, 2)
+                blit_pos = (cell_rect.centerx - surf_size//2, cell_rect.centery - surf_size//2)
+                self.pantalla.blit(s, blit_pos)
+
+            # Mines lineales horizontales T1: mostrar franja horizontal ±10 celdas
+            elif getattr(m, "tipo", "") == "T1":
+                span = 10
+                left_col = max(0, col - span)
+                right_col = min(self.columnas - 1, col + span)
+                left_r = self.cell_to_rect(col=left_col, fila=fila, pad=0)
+                right_r = self.cell_to_rect(col=right_col, fila=fila, pad=0)
+                x = left_r.x
+                y = left_r.y
+                w = (right_r.x + right_r.width) - x
+                h = left_r.height
+                s = pygame.Surface((w, h), pygame.SRCALPHA)
+                s.fill((200, 60, 60, 60))  # rojizo translúcido
+                self.pantalla.blit(s, (x, y))
+                pygame.draw.rect(self.pantalla, (200, 20, 20), (x, y, w, h), 2, border_radius=3)
+
+            # Mines lineales verticales T2: mostrar franja vertical ±5 celdas
+            elif getattr(m, "tipo", "") == "T2":
+                span = 5
+                top_row = max(0, fila - span)
+                bottom_row = min(self.filas - 1, fila + span)
+                top_r = self.cell_to_rect(col=col, fila=top_row, pad=0)
+                bottom_r = self.cell_to_rect(col=col, fila=bottom_row, pad=0)
+                x = top_r.x
+                y = top_r.y
+                w = top_r.width
+                h = (bottom_r.y + bottom_r.height) - y
+                s = pygame.Surface((w, h), pygame.SRCALPHA)
+                s.fill((160, 160, 220, 60))  # azul translúcido para diferenciar
+                self.pantalla.blit(s, (x, y))
+                pygame.draw.rect(self.pantalla, (40, 40, 160), (x, y, w, h), 2, border_radius=3)
+
+        # restaurar clip antes de dibujar items (los items pueden sobresalir del overlay)
+        self.pantalla.set_clip(old_clip)
+
     
 
         matriz_actual = self.tablero.obtener_matriz_historial()
@@ -373,6 +499,29 @@ class Visualizer:
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
 
+        # Dibujar recuadros rojos para colisiones (se muestran sólo mientras estén en colisiones_visible)
+        col_vis = getattr(self.tablero, "colisiones_visible", set()) or set()
+        if col_vis:
+            outline_color = (200, 20, 20)
+            fill_color = (160, 30, 30, 40)
+            for pos in list(col_vis):
+                fila, col = pos
+                if not (0 <= fila < self.filas and 0 <= col < self.columnas):
+                    continue
+                rect = self.cell_to_rect(col=col, fila=fila, pad=1)
+                # borde rojo grueso
+                pygame.draw.rect(self.pantalla, outline_color, rect, 3, border_radius=3)
+                # reproducir sonido una sola vez por colisión recién añadida
+                just = getattr(self.tablero, "colisiones_just_added", set())
+                if pos in just:
+                    try:
+                        if self.collision_sound:
+                            self.collision_sound.play()
+                    except Exception:
+                        pass
+            # una vez reproducidos, limpiar el conjunto de "just added" (no persistir)
+            if hasattr(self.tablero, "colisiones_just_added"):
+                self.tablero.colisiones_just_added.clear()
 
 
 

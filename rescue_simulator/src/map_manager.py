@@ -18,6 +18,8 @@ class Tablero:
         self.pos_recursos = {}  
         self.pos_minas = {}
         self.posiciones_ocupadas = set()
+        # celdas reservadas por el alcance de minas (no se puede colocar elemento ahí)
+        self.reserved_positions = set()
         
         # Simulación y Historial
         # Estado: 'stopped', 'init', 'running', 'paused'
@@ -28,6 +30,8 @@ class Tablero:
         # Posiciones de colisión visibles SOLO durante el paso en que ocurren
         # (se almacena un set de tuplas (fila, col))
         self.colisiones_visible = set()
+        # Colisiones que acaban de ocurrir (se usan para reproducir sonido 1 vez)
+        self.colisiones_just_added = set()
 
         # Flag para mostrar overlay de "juego finalizado" cuando se presiona STOP
         self.game_finished = False
@@ -39,11 +43,52 @@ class Tablero:
         # Asegurar estado inicial vacío en la matriz e historial (sin elementos visibles)
         self.actualizar_matriz()
         self.historial_matrices = [copy.deepcopy(self.matriz)]
-        self.indice_historial = 0    
+        self.indice_historial = 0  
+        # contador de pasos de simulación (se incrementa en ejecutar_un_paso_simulacion)
+        self.step_count = 0
+
+    def _influence_positions(self, tipo, pos, radio):
+        """Retorna set de celdas (fila,col) que constituyen el área de influencia
+        del tipo de mina colocado en pos. Recorta a los límites del tablero."""
+        x, y = pos
+        influ = set()
+        if tipo in ("01", "02"):
+            # circular: incluir todas las celdas cuya distancia euclídea <= radio
+            for i in range(max(0, x - radio), min(self.largo, x + radio + 1)):
+                for j in range(max(0, y - radio), min(self.ancho, y + radio + 1)):
+                    dx = i - x
+                    dy = j - y
+                    if dx*dx + dy*dy <= radio*radio:
+                        influ.add((i, j))
+        elif tipo == "T1":
+            # horizontal span ±radio (se requiere solo fila fija)
+            left = max(0, y - radio)
+            right = min(self.ancho - 1, y + radio)
+            for j in range(left, right + 1):
+                if 0 <= x < self.largo:
+                    influ.add((x, j))
+        elif tipo == "T2":
+            # vertical span ±radio (col fija)
+            top = max(0, x - radio)
+            bottom = min(self.largo - 1, x + radio)
+            for i in range(top, bottom + 1):
+                if 0 <= y < self.ancho:
+                    influ.add((i, y))
+        elif tipo == "G1":
+            # tratar G1 como circular usando su radio
+            for i in range(max(0, x - radio), min(self.largo, x + radio + 1)):
+                for j in range(max(0, y - radio), min(self.ancho, y + radio + 1)):
+                    dx = i - x
+                    dy = j - y
+                    if dx*dx + dy*dy <= radio*radio:
+                        influ.add((i, j))
+        return influ
 
     def add_collision(self, pos):
         """Registrar colisión en pos (fila, col) — se mantiene hasta el siguiente paso."""
-        self.colisiones_visible.add(tuple(pos))
+        tpos = tuple(pos)
+        self.colisiones_visible.add(tpos)
+        self.colisiones_just_added.add(tpos)
 
     # --- Métodos de Control de la Simulación ---
     def set_sim_state(self, new_state):
@@ -143,45 +188,86 @@ class Tablero:
 
     def inicializar_elementos_aleatoriamente(self):
         """
-        Genera los recursos y minas, les asigna una posición aleatoria (evitando las bases) 
+        Genera los recursos y minas, les asigna una posición aleatoria (evitando las bases)
         y los almacena en las listas y diccionarios del tablero.
+
+        Nueva estrategia:
+        - limpiar estructuras
+        - separar minas y recursos
+        - crear lista de posiciones candidatas (excluyendo columnas de bases)
+        - colocar minas primero (reservando su área de influencia)
+        - luego colocar recursos en posiciones libres restantes
+        - si no hay posiciones válidas se lanza RuntimeError con mensaje claro
         """
-        
         self.recursos = []
         self.minas = []
-        self.pos_recursos = {}  
+        self.pos_recursos = {}
         self.pos_minas = {}
-        self.posiciones_ocupadas = set() 
-        
+        self.posiciones_ocupadas = set()
+        self.reserved_positions = set()  # limpiar reservas previas
+
         elementos = self._crear_elementos()
-        
-        # Bases están en la columna 0 y columna ancho-1 (y=0 y y=ancho-1)
+
+        # Separar minas y recursos para colocar minas primero
+        minas = [e for e in elementos if isinstance(e, Mine)]
+        recursos = [e for e in elementos if isinstance(e, Resource)]
+
+        # Posiciones candidatas (excluir columna 0 y columna ancho-1 usadas por bases)
         y_min = 1
-        y_max = self.ancho - 2 
-        
-        # 3. Asignar Posición Aleatoria y Almacenar
-        for elemento in elementos:
-            posicion_valida = False
-            while not posicion_valida:
-                
-                x = random.randint(0, self.largo - 1)
-                y = random.randint(y_min, y_max) 
-                pos = (x, y)
-                
-                if pos not in self.posiciones_ocupadas:
-                    
-                    elemento.x, elemento.y = pos 
-                    self.posiciones_ocupadas.add(pos)
-                    posicion_valida = True
-            
-            if isinstance(elemento, Resource):
-                self.recursos.append(elemento)
-                self.pos_recursos[pos] = elemento 
-            
-            elif isinstance(elemento, Mine):
-                self.minas.append(elemento)
-                self.pos_minas[pos] = elemento
-    
+        y_max = self.ancho - 2
+        all_positions = [(i, j) for i in range(0, self.largo) for j in range(y_min, y_max + 1)]
+
+        # Helper para elegir aleatoriamente desde una lista
+        def elegir_aleatoria(lst):
+            if not lst:
+                return None
+            return random.choice(lst)
+
+        # 1) Colocar minas primero (reservar sus zonas)
+        for mina in minas:
+            # calcular posiciones válidas para esta mina
+            valid = []
+            for pos in all_positions:
+                if pos in self.posiciones_ocupadas:
+                    continue
+                if pos in self.reserved_positions:
+                    continue
+                tipo = getattr(mina, "tipo", None)
+                radio = int(getattr(mina, "radio", 0))
+                influ = self._influence_positions(tipo, pos, radio)
+                # no debe intersectar ocupadas ni reservas existentes
+                if influ & self.posiciones_ocupadas:
+                    continue
+                if influ & self.reserved_positions:
+                    continue
+                valid.append(pos)
+            pos = elegir_aleatoria(valid)
+            if pos is None:
+                raise RuntimeError("No hay posiciones válidas para colocar todas las minas. Reduce densidad o aumenta el tablero.")
+            mina.x, mina.y = pos
+            self.minas.append(mina)
+            self.pos_minas[pos] = mina
+            # reservar influencia para futuras colocaciones
+            tipo = getattr(mina, "tipo", None)
+            radio = int(getattr(mina, "radio", 0))
+            influ = self._influence_positions(tipo, pos, radio)
+            self.reserved_positions.update(influ)
+            # reservar la celda concreta también
+            self.posiciones_ocupadas.add(pos)
+
+        # 2) Colocar recursos en posiciones que no estén ocupadas ni reservadas
+        free_positions = [p for p in all_positions if p not in self.posiciones_ocupadas and p not in self.reserved_positions]
+        if len(free_positions) < len(recursos):
+            raise RuntimeError("No hay suficientes posiciones libres para colocar todos los recursos. Reduce elementos o aumenta tablero.")
+
+        random.shuffle(free_positions)
+        for recurso, pos in zip(recursos, free_positions):
+            recurso.x, recurso.y = pos
+            self.recursos.append(recurso)
+            self.pos_recursos[pos] = recurso
+            self.posiciones_ocupadas.add(pos)
+
+        # nota: no tocamos vehículos aquí (se inicializan en inicializar_vehiculos)
     
     def inicializar_vehiculos(self):
         tipos = [(Jeep, 3),(Moto, 2),(Camion, 2), (Auto, 3)]
@@ -263,6 +349,67 @@ class Tablero:
                 # registrar la posición de colisión VISIBLE (durará hasta el próximo paso)
                 self.add_collision(pos)
 
+        # --- Detectar colisiones vehículo <-> mina ---
+        # Recorremos vehículos activos y minas activas; si vehículo cae en el área de influencia
+        # de una mina, ambos se eliminan y la carga del vehículo se destruye.
+        for v in list(self.vehiculos):
+            if v.estado != "activo":
+                continue
+            vpos = v.posicion
+            for m in list(self.minas):
+                if getattr(m, "estado", None) != "activa":
+                    continue
+                # área de influencia de la mina (set de (fila,col))
+                influ = self._influence_positions(getattr(m, "tipo", None), (m.x, m.y), int(getattr(m, "radio", 0)))
+                if vpos in influ:
+                    # destruir vehículo y su carga
+                    try:
+                        for carga in list(getattr(v, "carga_actual", [])):
+                            # si el recurso tiene método destruirse, usarlo
+                            if hasattr(carga, "destruirse"):
+                                carga.destruirse()
+                        v.carga_actual = []
+                    except Exception:
+                        v.carga_actual = []
+                    v.destruir()
+                    # eliminar de la base si estaba allí
+                    try:
+                        base = self.bases.get(v.jugador)
+                        if base and v in base.vehiculos:
+                            base.vehiculos.remove(v)
+                    except Exception:
+                        pass
+
+                    # destruir la mina: marcar estado y liberar reservas/posiciones
+                    try:
+                        m.estado = "destruida"
+                    except Exception:
+                        m.estado = "destruida"
+                    # liberar reservas asociadas a la mina
+                    try:
+                        radio = int(getattr(m, "radio", 0))
+                        influ_m = self._influence_positions(getattr(m, "tipo", None), (m.x, m.y), radio)
+                        self.reserved_positions.difference_update(influ_m)
+                    except Exception:
+                        pass
+                    # remover mapa de minas
+                    try:
+                        pos_m = (m.x, m.y)
+                        self.pos_minas.pop(pos_m, None)
+                        # mantener en self.minas pero con estado "destruida" (opcional: eliminar completamente)
+                    except Exception:
+                        pass
+
+                    # registrar colisión visual y sonora en la celda del vehículo/mina
+                    self.add_collision(vpos)
+                    # ya manejamos este vehículo con esta mina -> salir del bucle de minas
+                    break
+
+        # (Opcional) limpiar vehículos destruidos de la lista para evitar efectos secundarios
+        # pero mantenerlos si quieres histórico; aquí los mantenemos pero con estado 'destruido'
+        # self.vehiculos = [v for v in self.vehiculos if v.estado == "activo"]
+
+
 
         # Actualizar matriz
         self.actualizar_matriz()
@@ -270,6 +417,11 @@ class Tablero:
         self._guardar_estado_en_historial()
         # Se asegura de estar al final del historial
         self.indice_historial = len(self.historial_matrices) - 1
+        # avanzar contador de pasos (usa esto para efectos temporales como G1)
+        try:
+            self.step_count += 1
+        except Exception:
+            self.step_count = getattr(self, "step_count", 0) + 1
 
     def start_simulation(self):
         pass
