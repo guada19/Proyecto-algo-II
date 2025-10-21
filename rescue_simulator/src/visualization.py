@@ -1,7 +1,5 @@
 import pygame
-pygame.init()
 import os
-import math
 
 # ruta relativa al archivo actual
 font_1 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "RubikDirt-Regular.ttf")
@@ -61,7 +59,7 @@ class Button:
 #Clase que muestra todo en pantalla
 class Visualizer:
     
-    def __init__(self, tablero, ancho=1400, alto=900):
+    def __init__(self, tablero, ancho=1200, alto=700):
         
         # Colores base
         self.color_fondo = (78, 77, 52)     
@@ -107,6 +105,8 @@ class Visualizer:
         self._compute_layout(margen = 40, base_px = 70)
 
         self.buttons = self._create_buttons()
+        # Track last frame index to play collision sound only once per new live frame
+        self._last_played_collision_frame = -1
 
     def _create_buttons(self):
         """Crea los botones de control y administra su habilitación según estado."""
@@ -116,7 +116,8 @@ class Visualizer:
 
         total_buttons_w = 6 * button_w + 5 * spacing
         start_x = (self.ancho - total_buttons_w) // 2
-        start_y = self.margen + self.header_h + 10
+        # colocar botones debajo del mapa (debajo de la grilla central)
+        start_y = self.gy + self.central_h + 10
 
         buttons = []
         x = start_x
@@ -188,9 +189,8 @@ class Visualizer:
                               self.color_quit, (255, 0, 0),
                               lambda: pygame.event.post(pygame.event.Event(pygame.QUIT))))
 
-        # Ajustar layout vertical
+        # Ajustar layout vertical (no desplazar gy; los botones están fuera del área de la grilla)
         self.buttons_h = button_h + spacing
-        self.gy += self.buttons_h
 
         # ESTADOS INICIALES: antes de presionar INIT o después de STOP
         # pause, stop, prev, next deben estar deshabilitados
@@ -235,8 +235,9 @@ class Visualizer:
         avail_w = self.ancho - 2*self.margen
         avail_h = self.alto  - 2*self.margen - self.header_h
 
-        # columnas solo del centro (excluye las de base lógicas)
-        central_cols = max(self.columnas - 2, 1)
+        # columnas centrales: ahora usamos todas las columnas como celdas iguales
+        # (las bases se dibujan como paneles laterales fuera de la grilla)
+        central_cols = max(self.columnas, 1)
 
         # ancho disponible para la grilla central (resta paneles)
         central_avail_w = max(avail_w - 2*self.base_w, 1)
@@ -272,6 +273,17 @@ class Visualizer:
         header_rect = (self.margen, self.margen, self.ancho - 2*self.margen, self.header_h)
         pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 0, border_radius=4)
         pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 2, border_radius=4)
+        # Mostrar contador de pasos en la esquina superior derecha del header (tomado del frame actual)
+        try:
+            frame = self.tablero.obtener_frame_actual()
+            pasos = frame.get("step_count", getattr(self.tablero, "step_count", 0))
+        except Exception:
+            pasos = getattr(self.tablero, "step_count", 0)
+        contador_s = f"Pasos: {int(pasos)}"
+        cnt_surf = self.font_bases.render(contador_s, True, (240, 240, 240))
+        cnt_x = header_rect[0] + header_rect[2] - 12 - cnt_surf.get_width()
+        cnt_y = header_rect[1] + (header_rect[3] - cnt_surf.get_height()) // 2
+        self.pantalla.blit(cnt_surf, (cnt_x, cnt_y))
 
         title_surf = self.font_titulo.render(self.title, True, self.color_titulo)
         title_x = header_rect[0] + (header_rect[2] - title_surf.get_width()) // 2
@@ -298,7 +310,7 @@ class Visualizer:
         pygame.draw.rect(self.pantalla, self.color_grid_bg, central_rect, 0)
         
         # líneas de grilla (solo dentro del rect central)
-        cols_centro = max(self.columnas - 2, 1)
+        cols_centro = max(self.columnas, 1)
 
         inset = 1 
         inner_left   = central_x + inset
@@ -327,15 +339,9 @@ class Visualizer:
         y = self.gy + fila * self.celda
         h = self.celda
 
-        if col == 0:
-            x = self.gx
-            w = self.base_w
-        elif col == self.columnas - 1:
-            x = self.gx + self.base_w + self.central_w
-            w = self.base_w
-        else:
-            x = self.gx + self.base_w + (col - 1) * self.celda
-            w = self.celda
+        # Todas las columnas son celdas iguales; la grilla está desplazada por base_w
+        x = self.gx + self.base_w + col * self.celda
+        w = self.celda
 
         return pygame.Rect(x + pad, y + pad, max(1, w - 2*pad), max(1, h - 2*pad))
 
@@ -401,62 +407,44 @@ class Visualizer:
 
 
     def draw_from_tablero(self):
-        """Dibuja primero los radios de minas (dentro de la cuadricula) y luego los items."""
+        """Dibuja primero los radios de minas (según el frame guardado) y luego los items."""
         # rect de la zona cuadriculada central (para recortar dibujo)
         central_x = self.gx + self.base_w
         central_rect = pygame.Rect(central_x, self.gy, self.central_w, self.central_h)
-        # recortar dibujado a la grilla central para no pintar fuera
         old_clip = self.pantalla.get_clip()
         self.pantalla.set_clip(central_rect)
 
-        # Dibujar alcance de minas (solo minas activas)
-        for m in getattr(self.tablero, "minas", []):
-            if getattr(m, "estado", None) != "activa":
+        # Obtener frame guardado para el índice actual
+        frame = self.tablero.obtener_frame_actual()
+        minas_overlay = frame.get("minas_overlay", [])
+
+        # Dibujar overlays de minas según el frame (se dibujan solo dentro de la cuadricula)
+        for mo in minas_overlay:
+            if mo.get("estado") != "activa":
                 continue
-            fila, col = m.x, m.y
-            # verificar que la mina esté dentro de la matriz
+            if not mo.get("visible", True):
+                continue
+            fila, col = mo.get("pos", (None, None))
+            if fila is None:
+                continue
             if not (0 <= fila < self.filas and 0 <= col < self.columnas):
                 continue
-
             cell_rect = self.cell_to_rect(col=col, fila=fila, pad=0)
+            tipo = mo.get("tipo")
+            radio_cells = int(mo.get("radio", 0))
 
-            # Mines circulares (O1/O2): dibujar círculo translúcido con radio en celdas
-            if getattr(m, "tipo", "") in ("01", "02"):
-                radius_cells = int(getattr(m, "radio", 0))
-                radius_px = max(1, radius_cells * self.celda)
+            if tipo in ("01", "02", "G1"):
+                radius_px = max(1, radio_cells * self.celda)
                 surf_size = radius_px * 2 + 4
                 s = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
-                # color translúcido (amarillo/orange)
-                pygame.draw.circle(s, (255, 200, 0, 70), (surf_size//2, surf_size//2), radius_px)
-                # borde visible sin transparencia
-                pygame.draw.circle(s, (200, 120, 0, 220), (surf_size//2, surf_size//2), radius_px, 2)
-                blit_pos = (cell_rect.centerx - surf_size//2, cell_rect.centery - surf_size//2)
-                self.pantalla.blit(s, blit_pos)
-
-            # Mina G1: mismo tratamiento circular, pero aparece/desaparece cada 5 pasos
-            elif getattr(m, "tipo", "") == "G1":
-                # decidir visibilidad en función del contador de pasos del tablero:
-                # visible durante 5 pasos, luego invisible 5 pasos, y así sucesivamente
-                step = getattr(self.tablero, "step_count", 0)
-                visible = ((step // 5) % 2) == 0
-                if not visible:
-                    # no dibujar la G1 cuando está en la fase invisible
-                    continue
-                radius_cells = int(getattr(m, "radio", getattr(m, "r", 0)))
-                radius_px = max(1, radius_cells * self.celda)
-                surf_size = radius_px * 2 + 4
-                s = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
-                # color translúcido (similar a minas circulares)
                 pygame.draw.circle(s, (255, 200, 0, 70), (surf_size//2, surf_size//2), radius_px)
                 pygame.draw.circle(s, (200, 120, 0, 220), (surf_size//2, surf_size//2), radius_px, 2)
                 blit_pos = (cell_rect.centerx - surf_size//2, cell_rect.centery - surf_size//2)
                 self.pantalla.blit(s, blit_pos)
-
-            # Mines lineales horizontales T1: mostrar franja horizontal ±10 celdas
-            elif getattr(m, "tipo", "") == "T1":
-                span = 10
-                left_col = max(0, col - span)
-                right_col = min(self.columnas - 1, col + span)
+            elif tipo == "T1":
+                span = radio_cells or 10
+                left_col = max(1, col - span)
+                right_col = min(self.columnas - 2, col + span)
                 left_r = self.cell_to_rect(col=left_col, fila=fila, pad=0)
                 right_r = self.cell_to_rect(col=right_col, fila=fila, pad=0)
                 x = left_r.x
@@ -464,13 +452,11 @@ class Visualizer:
                 w = (right_r.x + right_r.width) - x
                 h = left_r.height
                 s = pygame.Surface((w, h), pygame.SRCALPHA)
-                s.fill((200, 60, 60, 60))  # rojizo translúcido
+                s.fill((200, 60, 60, 60))
                 self.pantalla.blit(s, (x, y))
                 pygame.draw.rect(self.pantalla, (200, 20, 20), (x, y, w, h), 2, border_radius=3)
-
-            # Mines lineales verticales T2: mostrar franja vertical ±5 celdas
-            elif getattr(m, "tipo", "") == "T2":
-                span = 5
+            elif tipo == "T2":
+                span = radio_cells or 5
                 top_row = max(0, fila - span)
                 bottom_row = min(self.filas - 1, fila + span)
                 top_r = self.cell_to_rect(col=col, fila=top_row, pad=0)
@@ -480,17 +466,19 @@ class Visualizer:
                 w = top_r.width
                 h = (bottom_r.y + bottom_r.height) - y
                 s = pygame.Surface((w, h), pygame.SRCALPHA)
-                s.fill((160, 160, 220, 60))  # azul translúcido para diferenciar
+                s.fill((160, 160, 220, 60))
                 self.pantalla.blit(s, (x, y))
                 pygame.draw.rect(self.pantalla, (40, 40, 160), (x, y, w, h), 2, border_radius=3)
 
-        # restaurar clip antes de dibujar items (los items pueden sobresalir del overlay)
+        # restaurar clip antes de dibujar items
         self.pantalla.set_clip(old_clip)
 
     
 
-        matriz_actual = self.tablero.obtener_matriz_historial()
-        
+        # usar la matriz del frame actual
+        frame = self.tablero.obtener_frame_actual()
+        matriz_actual = frame.get("matriz", self.tablero.matriz)
+       
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = matriz_actual[fila][col] 
@@ -499,29 +487,29 @@ class Visualizer:
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
 
-        # Dibujar recuadros rojos para colisiones (se muestran sólo mientras estén en colisiones_visible)
-        col_vis = getattr(self.tablero, "colisiones_visible", set()) or set()
+        # Dibujar recuadros rojos para las colisiones del frame
+        col_vis = set(frame.get("colisiones", set()))
+        col_just = set(frame.get("colisiones_just_added", set()))
         if col_vis:
             outline_color = (200, 20, 20)
-            fill_color = (160, 30, 30, 40)
             for pos in list(col_vis):
                 fila, col = pos
                 if not (0 <= fila < self.filas and 0 <= col < self.columnas):
                     continue
                 rect = self.cell_to_rect(col=col, fila=fila, pad=1)
-                # borde rojo grueso
                 pygame.draw.rect(self.pantalla, outline_color, rect, 3, border_radius=3)
-                # reproducir sonido una sola vez por colisión recién añadida
-                just = getattr(self.tablero, "colisiones_just_added", set())
-                if pos in just:
-                    try:
-                        if self.collision_sound:
-                            self.collision_sound.play()
-                    except Exception:
-                        pass
-            # una vez reproducidos, limpiar el conjunto de "just added" (no persistir)
-            if hasattr(self.tablero, "colisiones_just_added"):
-                self.tablero.colisiones_just_added.clear()
+
+        # Reproducir sonido de colisión solo si estamos mostrando el frame más reciente (live)
+        # y solo una vez por cambio de frame para no repetir a 60 FPS.
+        current_index = self.tablero.indice_historial
+        if current_index == len(self.tablero.historial_matrices) - 1:
+            if col_just and current_index != self._last_played_collision_frame:
+                try:
+                    if self.collision_sound:
+                        self.collision_sound.play()
+                except Exception:
+                    pass
+                self._last_played_collision_frame = current_index
 
 
 

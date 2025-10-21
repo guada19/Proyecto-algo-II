@@ -40,48 +40,60 @@ class Tablero:
         self.base_jugador1 = Base(self.ancho, self.largo, 1, [])
         self.base_jugador2 = Base(self.ancho, self.largo, 2, [])
         self.bases = {1: self.base_jugador1, 2: self.base_jugador2}
-        # Asegurar estado inicial vacío en la matriz e historial (sin elementos visibles)
+        # Asegurar estado inicial vacío en la matriz e historial (guardado como frame estructurado)
         self.actualizar_matriz()
-        self.historial_matrices = [copy.deepcopy(self.matriz)]
-        self.indice_historial = 0  
+        #self.historial_matrices = []
+        #self.indice_historial = 0
+        # Guardar primer frame estructurado
+        self._guardar_estado_en_historial()
         # contador de pasos de simulación (se incrementa en ejecutar_un_paso_simulacion)
         self.step_count = 0
 
     def _influence_positions(self, tipo, pos, radio):
         """Retorna set de celdas (fila,col) que constituyen el área de influencia
-        del tipo de mina colocado en pos. Recorta a los límites del tablero."""
+        del tipo de mina colocado en pos.
+        - Siempre recorta la influencia al área cuadriculada central (columnas 1 .. ancho-2).
+        - Recorta también a los límites de filas (0 .. largo-1)."""
         x, y = pos
         influ = set()
-        if tipo in ("01", "02"):
-            # circular: incluir todas las celdas cuya distancia euclídea <= radio
-            for i in range(max(0, x - radio), min(self.largo, x + radio + 1)):
-                for j in range(max(0, y - radio), min(self.ancho, y + radio + 1)):
+        # columnas válidas de la grilla central (excluyen las columnas de base 0 y ancho-1)
+        col_min = 1
+        col_max = max(1, self.ancho - 2)
+
+        if tipo in ("01", "02", "G1"):
+            # circular: incluir celdas cuya distancia euclídea <= radio,
+            # pero limitar columnas a [col_min, col_max]
+            r = int(max(0, radio))
+            row_min = max(0, x - r)
+            row_max = min(self.largo - 1, x + r)
+            col_start = max(col_min, y - r)
+            col_end = min(col_max, y + r)
+            for i in range(row_min, row_max + 1):
+                for j in range(col_start, col_end + 1):
                     dx = i - x
                     dy = j - y
-                    if dx*dx + dy*dy <= radio*radio:
+                    if dx*dx + dy*dy <= r*r:
                         influ.add((i, j))
+
         elif tipo == "T1":
-            # horizontal span ±radio (se requiere solo fila fija)
-            left = max(0, y - radio)
-            right = min(self.ancho - 1, y + radio)
-            for j in range(left, right + 1):
-                if 0 <= x < self.largo:
+            # horizontal span ±radio, pero solo dentro de columnas centrales
+            span = int(max(0, radio))
+            left = max(col_min, y - span)
+            right = min(col_max, y + span)
+            if 0 <= x < self.largo:
+                for j in range(left, right + 1):
                     influ.add((x, j))
+
         elif tipo == "T2":
-            # vertical span ±radio (col fija)
-            top = max(0, x - radio)
-            bottom = min(self.largo - 1, x + radio)
+            # vertical span ±radio, column must be within central columns
+            if not (col_min <= y <= col_max):
+                return influ
+            span = int(max(0, radio))
+            top = max(0, x - span)
+            bottom = min(self.largo - 1, x + span)
             for i in range(top, bottom + 1):
-                if 0 <= y < self.ancho:
-                    influ.add((i, y))
-        elif tipo == "G1":
-            # tratar G1 como circular usando su radio
-            for i in range(max(0, x - radio), min(self.largo, x + radio + 1)):
-                for j in range(max(0, y - radio), min(self.ancho, y + radio + 1)):
-                    dx = i - x
-                    dy = j - y
-                    if dx*dx + dy*dy <= radio*radio:
-                        influ.add((i, j))
+                influ.add((i, y))
+
         return influ
 
     def add_collision(self, pos):
@@ -128,19 +140,58 @@ class Tablero:
         
     def _guardar_estado_en_historial(self):
         """Guarda la matriz actual como una nueva entrada en el historial."""
-        # Se usa deepcopy para guardar una copia independiente de la matriz actual
+        # Si estamos "atrás" en el historial, borramos el futuro antes de añadir uno nuevo
         if self.indice_historial < len(self.historial_matrices) - 1:
-            # Si estamos "atrás" en el historial, borramos el futuro antes de añadir uno nuevo
             self.historial_matrices = self.historial_matrices[:self.indice_historial + 1]
-            
-        self.historial_matrices.append(copy.deepcopy(self.matriz))
+
+        # Construir frame con overlays (copias, para que el historial sea inmutable)
+        frame = {
+            "matriz": copy.deepcopy(self.matriz),
+            "colisiones": set(self.colisiones_visible),
+            "colisiones_just_added": set(self.colisiones_just_added),
+            "minas_overlay": []
+        }
+        # Registrar estado/visibilidad de cada mina en el frame
+        for m in self.minas:
+            frame["minas_overlay"].append({
+                "pos": (m.x, m.y),
+                "tipo": getattr(m, "tipo", None),
+                "estado": getattr(m, "estado", None),
+                "radio": int(getattr(m, "radio", 0)),
+                # visibilidad de G1 depende del contador de pasos en ese momento
+                "visible": (getattr(m, "tipo", None) != "G1") or (((self.step_count // 5) % 2) == 0 and getattr(m, "estado", None) == "activa")
+            })
+
+        self.historial_matrices.append(frame)
         self.indice_historial = len(self.historial_matrices) - 1
+        # limpiar las colisiones "just added" en el estado vivo (el frame ya las contiene)
+        self.colisiones_just_added = set()
+        # ...existing code...
+
+    def obtener_frame_actual(self):
+        """Retorna el frame completo (matriz + overlays) correspondiente al índice actual."""
+        if not self.historial_matrices:
+            return {
+                "matriz": copy.deepcopy(self.matriz),
+                "colisiones": set(),
+                "colisiones_just_added": set(),
+                "minas_overlay": []
+            }
+        entry = self.historial_matrices[self.indice_historial]
+        # compatibilidad: si la entrada es una matriz antigua (list), envolverla en frame
+        if isinstance(entry, list):
+            return {
+                "matriz": copy.deepcopy(entry),
+                "colisiones": set(),
+                "colisiones_just_added": set(),
+                "minas_overlay": []
+            }
+        return entry
 
     def obtener_matriz_historial(self):
-        """Retorna la matriz actual según el índice del historial."""
-        if not self.historial_matrices:
-            return self.matriz # Retorna la matriz actual si no hay historial
-        return self.historial_matrices[self.indice_historial]
+        """Compatibilidad: retorna solo la matriz del frame actual (método usado anteriormente)."""
+        frame = self.obtener_frame_actual()
+        return frame.get("matriz", self.matriz)
 
     def prev_frame(self):
         """Retrocede un paso en el historial (Botón <<)."""
@@ -309,6 +360,8 @@ class Tablero:
         self.historial_matrices = []
         self.indice_historial = 0
         self._guardar_estado_en_historial() # Guardar el estado inicial
+        # reiniciar contador de pasos al iniciar la simulación
+        self.step_count = 0
         self.mostrar_tablero()
         
     def ejecutar_un_paso_simulacion(self):
@@ -422,6 +475,11 @@ class Tablero:
             self.step_count += 1
         except Exception:
             self.step_count = getattr(self, "step_count", 0) + 1
+        # Si alcanzamos 60 pasos, detener la simulación igual que si se presionara STOP
+        if getattr(self, "step_count", 0) >= 60:
+            # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
+            self.set_sim_state("stopped")
+            return
 
     def start_simulation(self):
         pass

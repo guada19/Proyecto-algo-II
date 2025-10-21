@@ -4,7 +4,7 @@ from src.visualization import Visualizer
 
 def main():
     # Inicialización del tablero y visualizador
-    tablero = Tablero(ancho=50, largo=50)  # usa tus valores reales
+    tablero = Tablero(ancho=50, largo=40)  # usa tus valores reales
     viz = Visualizer(tablero)
     
     # Temporizador de la simulación (Regla 6: 2 segundos por movimiento)
