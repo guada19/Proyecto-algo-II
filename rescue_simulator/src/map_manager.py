@@ -2,6 +2,7 @@ from src.aircraft import *
 from src.mines import *
 from src.resources import *
 from src.base import *
+from config.strategies.player2_strategies import Estrategia
 import random
 
 
@@ -25,6 +26,15 @@ class Tablero:
         #Puntaje por jugador (izq = J1, der = J2)
         self.puntaje = {"J1": 0, "J2": 0} #Contador de puntos de cada jugador
         self.entregas = {"J1": 0, "J2": 0} #Contador de ítems entregados
+
+        # Simulación y Historial
+        # Estado: 'stopped', 'init', 'running', 'paused'
+        self.sim_state = "stopped" 
+        self.historial_matrices = [] 
+        self.indice_historial = 0
+
+        # contador de pasos de simulación 
+        self.step_count = 0
     
     def _crear_elementos(self):
         """Genera y retorna la lista de 65 objetos Resource y Mine."""
@@ -117,17 +127,57 @@ class Tablero:
                     self.vehiculos.append(nuevo_vehiculo) 
         self.actualizar_matriz()
 
+    #-----------------------------------------------------------------------------------------------------------
+    """
+    esto es solo para probar que el movimiento funcione de manera correcta, no sé en donde va a estar lo de las colisiones
+    así que lo puse acá nada más para probar no es nada muy interesante después se borra
+    """
+    def colision_minas(self, x, y):
+    # Devuelve True si la celda está dentro del radio de alguna mina
+    # Para simplificar, asumimos radio=1
+        for mx, my in self.pos_minas:
+            if abs(mx - x) <= 1 and abs(my - y) <= 1:
+                return True
+        return False
+
+    def colision_vehiculos(self, x, y):
+        # Para este ejemplo, asumimos que no hay otros vehículos
+        return False
+    #------------------------------------------------------------------------------------------------------------
     
     def initialization_simulation(self):
         self.inicializar_elementos_aleatoriamente()
         self.inicializar_vehiculos()
         self.actualizar_matriz()
         self.mostrar_tablero()
-     
+        
          
     def start_simulation(self):
         #Acá es donde cada jugador debería ejecutar su propia estrategia
-        pass
+        estrategia_j2 = Estrategia(self.bases[2].jugador, self.bases[2], self)
+        self.bases[2].asignar_estrategia(estrategia_j2)
+        estrategia_j2.ejecutar_estrategia()
+        
+        #NUEVO
+        # Actualizar matriz
+        self.actualizar_matriz()
+
+        # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
+        try:
+            self.step_count += 1
+        except Exception:
+            self.step_count = getattr(self, "step_count", 0) + 1
+
+        # Guardar el nuevo estado en el historial 
+        self._guardar_estado_en_historial()
+        # Se asegura de estar al final del historial
+        self.indice_historial = len(self.historial_matrices) - 1
+
+        # Si alcanzamos 60 pasos, detener la simulación igual que si se presionara STOP
+        if getattr(self, "step_count", 0) >= 60:
+            # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
+            self.set_sim_state("stopped")
+            return
 
     def actualizar_matriz(self):
         # 1. Limpiar matriz
@@ -145,7 +195,7 @@ class Tablero:
             if r.estado == "disponible":
                 x, y = pos
                 if 0 <= x < self.largo and 0 <= y < self.ancho:
-                    self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
+                    self.matriz[x][y] = 'P' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
         for v in self.vehiculos:
@@ -156,7 +206,12 @@ class Tablero:
     def actualizar_matriz_parcial(self):
         for v in self.vehiculos:
             x_ant, y_ant = v.posicion_anterior
-            self.matriz[x_ant][y_ant] = "0"
+            if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
+                # El recurso todavía está ahí, no borramos nada
+                pass
+            else:
+                self.matriz[x_ant][y_ant] = "0"
+        
         for v in self.vehiculos:
             x, y = v.posicion
             self.matriz[x][y] = v.tipo[0]
@@ -164,6 +219,12 @@ class Tablero:
     def mostrar_tablero(self):
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
+        
+        print("")
+        print("")
+        print("")
+        print("")
+
 
 
     #función para saber si la columna del tablero es base
@@ -222,4 +283,119 @@ class Tablero:
         vehiculo.carga_actual.clear()
         print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
 
+
+
+#---Funciones que se quedan ---
+
+    # --- Métodos de Control de la Simulación ---
+    def set_sim_state(self, new_state):
+        """Establece el estado de la simulación y realiza acciones de inicio/parada."""
+        if new_state == "init":
+             # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
+             self.game_finished = False
+             self.initialization_simulation()
+             self.sim_state = "running" # Inicia corriendo automáticamente
+        elif new_state == "stopped":
+            # Detener la simulación y limpiar TODOS los elementos visibles
+            self.sim_state = "stopped"
+            self.vehiculos = []
+            self.recursos = []
+            self.minas = []
+            self.pos_recursos = {}
+            self.pos_minas = {}
+            self.posiciones_ocupadas = set()
+            # actualizar matriz a estado vacío y guardar en historial
+            self.actualizar_matriz()
+            self.historial_matrices = [copy.deepcopy(self.matriz)]
+            self.indice_historial = 0
+            # activar overlay de "juego finalizado"
+            self.game_finished = True
+        else:
+            self.sim_state = new_state
+            
+    def toggle_sim_state(self):
+        """Alterna entre running y paused."""
+        if self.sim_state == "running":
+            self.sim_state = "paused"
+        elif self.sim_state == "paused":
+            self.sim_state = "running"
+        elif self.sim_state == "init": # Si se presiona antes de que inicie la simulación
+            self.initialization_simulation()
+            self.sim_state = "paused"
         
+    def _guardar_estado_en_historial(self):
+        """Guarda la matriz actual como una nueva entrada en el historial."""
+        # Si estamos "atrás" en el historial, borramos el futuro antes de añadir uno nuevo
+        if self.indice_historial < len(self.historial_matrices) - 1:
+            self.historial_matrices = self.historial_matrices[:self.indice_historial + 1]
+
+        # Construir frame con overlays (copias, para que el historial sea inmutable)
+        frame = {
+            "matriz": copy.deepcopy(self.matriz),
+            "colisiones": set(self.colisiones_visible),
+            "colisiones_just_added": set(self.colisiones_just_added),
+            "minas_overlay": [],
+            "step_count": int(getattr(self, "step_count", 0))
+        }
+        # Registrar estado/visibilidad de cada mina en el frame
+        for m in self.minas:
+            frame["minas_overlay"].append({
+                "pos": (m.x, m.y),
+                "tipo": getattr(m, "tipo", None),
+                "estado": getattr(m, "estado", None),
+                "radio": int(getattr(m, "radio", 0)),
+                # visibilidad de G1 depende del contador de pasos en ese momento
+                "visible": (getattr(m, "tipo", None) != "G1") or (((self.step_count // 5) % 2) == 0 and getattr(m, "estado", None) == "activa")
+            })
+
+        self.historial_matrices.append(frame)
+        self.indice_historial = len(self.historial_matrices) - 1
+        # limpiar las colisiones "just added" en el estado vivo (el frame ya las contiene)
+        self.colisiones_just_added = set()
+        # ...existing code...
+
+    def obtener_frame_actual(self):
+        """Retorna el frame completo (matriz + overlays) correspondiente al índice actual."""
+        if not self.historial_matrices:
+            return {
+                "matriz": copy.deepcopy(self.matriz),
+                "colisiones": set(),
+                "colisiones_just_added": set(),
+                "minas_overlay": []
+            }
+        entry = self.historial_matrices[self.indice_historial]
+        # compatibilidad: si la entrada es una matriz antigua (list), envolverla en frame
+        if isinstance(entry, list):
+            return {
+                "matriz": copy.deepcopy(entry),
+                "colisiones": set(),
+                "colisiones_just_added": set(),
+                "minas_overlay": []
+            }
+        return entry
+
+    def obtener_matriz_historial(self):
+        """Compatibilidad: retorna solo la matriz del frame actual (método usado anteriormente)."""
+        frame = self.obtener_frame_actual()
+        return frame.get("matriz", self.matriz)
+
+    def prev_frame(self):
+        """Retrocede un paso en el historial (Botón <<)."""
+        if self.indice_historial > 0:
+            self.indice_historial -= 1
+            # Forzar la pausa al moverse en el historial
+            if self.sim_state == "running":
+                self.sim_state = "paused"
+
+    def next_frame(self):
+        """Avanza un paso en el historial (Botón >>)."""
+        if self.indice_historial < len(self.historial_matrices) - 1:
+            self.indice_historial += 1
+            # Forzar la pausa al moverse en el historial
+            if self.sim_state == "running":
+                self.sim_state = "paused"
+        elif self.sim_state == "running":
+             # Si estamos al final y la simulación está corriendo, realiza el siguiente paso
+             self.ejecutar_un_paso_simulacion()
+
+

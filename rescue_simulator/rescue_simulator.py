@@ -33,9 +33,10 @@ def main():
         viz.clock.tick(60)
 
     pygame.quit()    
-
-    #viz.run()
     
+    #Prueba por consola para revisar que los vehiculos se meuven
+    tablero.start_simulation()
+    #viz.run()
     
     
 
