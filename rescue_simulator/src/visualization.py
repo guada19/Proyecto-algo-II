@@ -53,16 +53,17 @@ class Visualizer:
 
         pygame.init()
         pygame.font.init()
-        self.pantalla = pygame.display.set_mode((self.ancho, self.alto))
-        pygame.display.set_caption("Simulador - Tablero")
+
         self.clock = pygame.time.Clock()
 
 
-        self._compute_layout(margen = 40)
-        self._build_buttons()
-        # --- cargar sprites ---
-        self._cargar_sprites()
+        self._compute_layout(margen = 40, target_cell_px=48)
 
+        self.pantalla = pygame.display.set_mode((self.ancho, self.alto))
+        pygame.display.set_caption("Simulador - Tablero")
+
+        self._cargar_sprites()
+        self._build_buttons()
 
     def _cargar_sprites(self):
         self.img_cache = {}
@@ -105,71 +106,240 @@ class Visualizer:
                 if e.type == pygame.QUIT:
                     corriendo = False
 
+                elif e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+                    for b in self.buttons:
+                        if b["enabled"] and b["rect"].collidepoint(e.pos):
+                            self._on_button(b["key"])
+                            break
+
+                elif e.type == pygame.KEYDOWN:
+                    if   e.key in (pygame.K_i, pygame.K_I): self._on_button("init")
+                    elif e.key == pygame.K_SPACE:           self._on_button("pause_resume")
+                    elif e.key in (pygame.K_s, pygame.K_S): self._on_button("stop")
+                    elif e.key == pygame.K_LEFT:            self._on_button("prev")
+                    elif e.key == pygame.K_RIGHT:           self._on_button("next")
+                    elif e.key in (pygame.K_q, pygame.K_ESCAPE): self._on_button("quit")
+
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
             self.draw_from_tablero()
-
+            self.draw_buttons()
 
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
 
-    def _compute_layout(self, margen=28, base_px=90):
-        """Reserva header arriba, footer abajo, paneles laterales y centra la grilla."""
+    def _compute_layout(self, margen=28, base_px=90, target_cell_px=44):
+        """
+        Calcula layout centrado y agranda todo automáticamente,
+        sin exceder el tamaño de pantalla (cap a 95% ancho / 92% alto).
+        """
         self.columnas = int(self.tablero.ancho)
         self.filas    = int(self.tablero.largo)
 
-        self.base_w = int(base_px)
-        self.margen = int(margen)
+        # Márgenes y tamaños base
+        self.margen   = int(margen)
+        self.base_w   = int(base_px)
+        self.header_gap = getattr(self, "header_gap", 10)
+        self.footer_gap = getattr(self, "footer_gap", 20)
+        self.footer_h   = getattr(self, "footer_h", 35)
 
-        # área útil (dentro de márgenes + header + footer)
-        avail_w = self.ancho - 2*self.margen
-        avail_h = (self.alto
-                - 2*self.margen
-                - self.header_h
-                - self.header_gap
-                - self.footer_h
-                - self.footer_gap)
+        # 1) Límite físico de pantalla (cap)
+        info = pygame.display.Info()
+        cap_w = int(info.current_w * 0.98)   # 95% del monitor
+        cap_h = int(info.current_h * 0.96)   # 92% del monitor
 
+        # 2) Intento con celda objetivo
         central_cols = max(self.columnas - 2, 1)
-        central_avail_w = max(avail_w - 2*self.base_w, 1)
 
-        # tamaño de celda y dimensiones
-        self.celda = max(6, min(central_avail_w // central_cols, avail_h // self.filas))
-        self.central_w = self.celda * central_cols
-        self.central_h = self.celda * self.filas
+        cell = int(max(6, target_cell_px))
+        base_w = int(self.base_w)
 
-        # origen X para centrar (panel izq + grilla + panel der)
+        def recompute_sizes(cell_px: int, base_w_px: int):
+            # dimensiones de la grilla central
+            central_w = cell_px * central_cols
+            central_h = cell_px * self.filas
+            total_w   = base_w_px*2 + central_w
+            total_h   = (self.margen + self.header_h + self.header_gap +
+                        central_h + self.footer_gap + self.footer_h + self.margen)
+            # ancho total con márgenes
+            window_w  = total_w + 2*self.margen
+            window_h  = total_h
+            return window_w, window_h, central_w, central_h
+
+        window_w, window_h, central_w, central_h = recompute_sizes(cell, base_w)
+
+        # 3) Si se excede, reducimos celda gradualmente; si no alcanza, también base_w
+        min_cell = 10
+        min_base = 80
+
+        while (window_w > cap_w or window_h > cap_h) and (cell > min_cell or base_w > min_base):
+            if cell > min_cell:
+                cell = max(min_cell, int(cell * 0.9))  # baja 10% la celda
+            elif base_w > min_base:
+                base_w = max(min_base, int(base_w * 0.95))  # reducimos más suave
+            window_w, window_h, central_w, central_h = recompute_sizes(cell, base_w)
+
+        # 4) Ahora ajustamos self.ancho / self.alto a lo que realmente vamos a usar
+        #    (pero nunca más grande que el cap)
+        self.ancho = min(window_w, cap_w)
+        self.alto  = min(window_h, cap_h)
+
+        # 5) Recalcular centrado con estos tamaños finales (usa cell/base_w definitivos)
+        self.celda      = cell
+        self.base_w     = base_w
+        avail_w = self.ancho - 2*self.margen
+        # El alto ya está contenido por el cap; el tablero va centrado vertical entre header y footer,
+        # así que no necesitamos "avail_h" para la celda (ya la definimos).
+        self.central_w  = central_w
+        self.central_h  = central_h
+
         total_w = self.base_w*2 + self.central_w
         self.gx = (self.ancho - total_w) // 2
 
-        # origen Y del tablero: debajo del header
-        self.gy = self.margen + self.header_h + self.header_gap
+        # centrar verticalmente el bloque tablero entre header y footer
+        espacio_tablero = (self.alto - 2*self.margen - self.header_h - self.footer_h - self.footer_gap)
+        offset_central  = max(0, (espacio_tablero - self.central_h) // 2)
+        self.gy = self.margen + self.header_h + offset_central
 
-        # rects útiles para dibujar
-        self.base1_rect = pygame.Rect(self.gx, self.gy, self.base_w, self.central_h)
+        # rectángulos
+        self.base1_rect   = pygame.Rect(self.gx, self.gy, self.base_w, self.central_h)
         self.central_rect = pygame.Rect(self.gx + self.base_w, self.gy, self.central_w, self.central_h)
-        self.base2_rect = pygame.Rect(self.central_rect.right, self.gy, self.base_w, self.central_h)
+        self.base2_rect   = pygame.Rect(self.central_rect.right, self.gy, self.base_w, self.central_h)
 
-        # footer centrado debajo del tablero
         fy = self.gy + self.central_h + self.footer_gap
         self.footer_rect = pygame.Rect(self.margen, fy, self.ancho - 2*self.margen, self.footer_h)
 
     #Botones
     def _build_buttons(self):
-        etiquetas = [("Init", "init"), ("Play/Pause", "play"), ("Replay", "replay")]
-        n = len(etiquetas)
-        btn_w, btn_h, gap = 160, 40, 16
+        etiquetas = [
+            ("init", "init"),
+            ("pause/resume", "pause_resume"),
+            ("stop", "stop"),
+            ("prev", "prev"),
+            ("next", "next"),
+            ("quit", "quit"),
+        ]
 
-        total_w = n*btn_w + (n-1)*gap
-        start_x = self.central_rect.centerx - total_w // 2  # centrado respecto al TABLERO
+        n = len(etiquetas)
+        btn_w, btn_h, gap = 130, 38, 12
+        total_w = n * btn_w + (n - 1) * gap
+        start_x = self.footer_rect.centerx - total_w // 2
         y = self.footer_rect.centery - btn_h // 2
 
         self.buttons = []
         for i, (text, key) in enumerate(etiquetas):
-            x = start_x + i*(btn_w + gap)
+            x = start_x + i * (btn_w + gap)
             rect = pygame.Rect(x, y, btn_w, btn_h)
-            self.buttons.append({"rect": rect, "text": text, "key": key})
+            self.buttons.append({
+                "rect": rect,
+                "text": text,
+                "key": key,
+                "enabled": True,
+            })
+
+        self._set_enabled("init", True)
+        self._set_enabled("pause_resume", False)
+        self._set_enabled("stop", False)
+        self._set_enabled("prev", False)
+        self._set_enabled("next", False)
+        self._set_enabled("quit", True)
+
+    
+    def _btn(self, key: str):
+        for b in self.buttons:
+            if b["key"] == key:
+                return b
+        return None
+
+    def _set_enabled(self, key: str, val: bool):
+        b = self._btn(key)
+        if b:
+            b["enabled"] = bool(val)
+
+    def draw_buttons(self):
+        # Footer visible
+        pygame.draw.rect(self.pantalla, self.color_panel, self.footer_rect, border_radius=6)
+        pygame.draw.rect(self.pantalla, self.color_borde,  self.footer_rect, 2, border_radius=6)
+
+        mx, my = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()[0]
+
+        for b in self.buttons:
+            r = b["rect"]
+            enabled = b.get("enabled", True)
+            hover = enabled and r.collidepoint((mx, my))
+            pressed = hover and click
+
+            if not enabled:
+                fill = tuple(max(0, c - 40) for c in self.color_panel)
+            elif pressed:
+                fill = tuple(max(0, c - 25) for c in self.color_panel)
+            elif hover:
+                fill = tuple(min(255, c + 15) for c in self.color_panel)
+            else:
+                fill = self.color_panel
+
+            pygame.draw.rect(self.pantalla, fill, r, border_radius=8)
+            pygame.draw.rect(self.pantalla, self.color_grid_line, r, 2, border_radius=8)
+
+            col_text = self.color_titulo if enabled else (160, 150, 140)
+            txt = self.font_bases.render(b["text"], True, col_text)
+            self.pantalla.blit(txt, txt.get_rect(center=r.center))
+
+    def _on_button(self, key: str):
+        if key == "init":
+            self._do_init()
+        elif key == "pause_resume":
+            self._do_pause_resume()
+        elif key == "stop":
+            self._do_stop()
+        elif key == "prev":
+            self._do_prev()
+        elif key == "next":
+            self._do_next()
+        elif key == "quit":
+            pygame.event.post(pygame.event.Event(pygame.QUIT))
+
+    def _do_init(self):
+        if hasattr(self.tablero, "set_sim_state"):
+            try: self.tablero.set_sim_state("init")
+            except Exception: pass
+        self._set_enabled("pause_resume", True)
+        self._set_enabled("stop", True)
+        self._set_enabled("prev", False)
+        self._set_enabled("next", False)
+
+    def _do_pause_resume(self):
+        if hasattr(self.tablero, "toggle_sim_state"):
+            try: self.tablero.toggle_sim_state()
+            except Exception: pass
+        sim_state = getattr(self.tablero, "sim_state", None)
+        paused = (sim_state == "paused")
+        self._set_enabled("prev", paused)
+        self._set_enabled("next", paused)
+
+    def _do_stop(self):
+        if hasattr(self.tablero, "set_sim_state"):
+            try: self.tablero.set_sim_state("stopped")
+            except Exception: pass
+        self._set_enabled("pause_resume", False)
+        self._set_enabled("stop", False)
+        self._set_enabled("prev", False)
+        self._set_enabled("next", False)
+        self._set_enabled("init", True)
+
+    def _do_prev(self):
+        if hasattr(self.tablero, "prev_frame"):
+            try: self.tablero.prev_frame()
+            except Exception: pass
+
+    def _do_next(self):
+        if hasattr(self.tablero, "next_frame"):
+            try: self.tablero.next_frame()
+            except Exception: pass
+
+
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
@@ -185,7 +355,7 @@ class Visualizer:
 
         # ---------- HEADER ----------
         header_rect = (self.margen, self.margen, self.ancho - 2*self.margen, self.header_h)
-        # fondo del header (opcional, podés usar self.color_fondo para transparente)
+        # fondo del header 
         pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 0, border_radius=4)
         pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 2, border_radius=4)
 
@@ -264,13 +434,24 @@ class Visualizer:
         pygame.draw.rect(self.pantalla, self.color_fondo, self.footer_rect, border_radius=6)
         pygame.draw.rect(self.pantalla, self.color_fondo, self.footer_rect, 2, border_radius=6)
 
-        # mouse para hover
+        # Botones centrados (hover visual)
         mx, my = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()[0]
 
         for b in self.buttons:
             r = b["rect"]
             hover = r.collidepoint((mx, my))
-            pygame.draw.rect(self.pantalla, self.color_panel, r, border_radius=8)
+            pressed = hover and click
+
+            # color según estado
+            if pressed:
+                fill = tuple(max(0, c - 25) for c in self.color_panel)
+            elif hover:
+                fill = tuple(min(255, c + 15) for c in self.color_panel)
+            else:
+                fill = self.color_panel
+
+            pygame.draw.rect(self.pantalla, fill, r, border_radius=8)
             pygame.draw.rect(self.pantalla, self.color_grid_line, r, 2, border_radius=8)
 
             txt = self.font_bases.render(b["text"], True, self.color_titulo)
@@ -279,90 +460,95 @@ class Visualizer:
             self.pantalla.blit(txt, (tx, ty))
 
     #permite que las bases sean consideradas dentro del tablero
-    def cell_to_rect(self, col, fila, pad=2):
-        """Devuelve el rect para una celda lógica (col,fila).
-        col=0 → base izq, col=cols-1 → base der, resto → grilla central."""
+    def cell_to_rect(self, col: int, fila: int, pad: int = 2) -> pygame.Rect:
+        """
+        Devuelve el rectángulo 'dibujable' de la celda (col,fila),
+        centrado exactamente dentro del bloque de la celda y con padding simétrico.
+        """
         assert 0 <= col < self.columnas and 0 <= fila < self.filas
 
+        # Coordenadas y tamaño "crudo" de la celda (sin pad)
         y = self.gy + fila * self.celda
         h = self.celda
 
         if col == 0:
+            # base izquierda
             x = self.gx
-            w = self.base_w
+            w = self.base1_rect.width
         elif col == self.columnas - 1:
-            x = self.gx + self.base_w + self.central_w
-            w = self.base_w
+            # base derecha
+            x = self.base2_rect.x
+            w = self.base2_rect.width
         else:
-            x = self.gx + self.base_w + (col - 1) * self.celda
+            # grilla central (columna 1..N-2)
+            x = self.central_rect.x + (col - 1) * self.celda
             w = self.celda
 
-        return pygame.Rect(x + pad, y + pad, max(1, w - 2*pad), max(1, h - 2*pad))
+        # Rect "completo" de la celda
+        full = pygame.Rect(x, y, w, h)
 
-    # Forma visual TEMPORAL de los elementos
-    def draw_item(self, tipo, rect):
-    
-        base_h = rect.height
-        radio  = max(5, int(base_h * 0.45))
-        lado   = max(6, int(base_h * 0.90))
-        pad = 2
+        # Rect de dibujo: aplicamos pad de forma simétrica y re-centramos
+        draw_w = max(1, w - 2 * pad)
+        draw_h = max(1, h - 2 * pad)
+        rect = pygame.Rect(0, 0, draw_w, draw_h)
+        rect.center = full.center  
+        return rect
 
-        # FACTORES DE ESCALA 
-        escala_vehiculo = 2
-        escala_persona  = 1.7
-        escala_recurso  = 1.2
-        escala_mina = 1.5
+    def draw_item(self, tipo: str, rect: pygame.Rect):
+        """
+        Dibuja el sprite ocupando la mayor parte de la celda.
+        Se adapta al tamaño de 'rect' y mantiene proporción.
+        """
+        img = self.img_cache.get(tipo) if hasattr(self, "img_cache") else self.img.get(tipo)
 
-        # ---------- VEHÍCULOS, PERSONAS, RECURSOS, MINAS (con imagen) ----------
-        img = self.img_cache.get(tipo)
+        # Ratios por categoría (porcentaje del lado de la celda)
+        # Ajustalos a gusto (0.90 = 90% del lado útil)
+        if tipo in ("J", "M", "C", "A"):              # vehículos
+            fill_ratio = 2.5
+        elif str(tipo).startswith("PER"):             # personas
+            fill_ratio = 1.8
+        elif tipo in ("01","02","O1","O2","T1","T2","G1"):  # minas
+            fill_ratio = 2
+        else:                                         # recursos u otros
+            fill_ratio = 1.2
+
+
+        # Área objetivo dentro de la celda
+        max_w = rect.width
+        max_h = rect.height
+
+        # Si hay imagen, escalar proporcionalmente a fill_ratio
         if img:
             iw, ih = img.get_size()
-
-            # Elegir factor según tipo
-            if tipo in ("J", "M", "C", "A"):
-                escala = escala_vehiculo
-            elif tipo.startswith("PER"):
-                escala = escala_persona
-            elif tipo in ("O1", "O2", "T1", "T2", "G1"):
-                escala = escala_mina
-            else:
-                escala = escala_recurso
-
-            # tamaño máximo disponible dentro de la celda
-            max_w = rect.width
-            max_h = rect.height
-            s = min((max_w * escala) / iw, (max_h * escala) / ih)
-
-            new_w = int(iw * s)
-            new_h = int(ih * s)
-
+            # escala para que entre por ancho y por alto
+            s = min((max_w * fill_ratio) / iw, (max_h * fill_ratio) / ih)
+            # Tamaño final (con mínimo para que no desaparezcan)
+            new_w = max(12, int(iw * s))
+            new_h = max(12, int(ih * s))
+            # Evitar artefactos (a veces conviene pares)
             if new_w % 2: new_w -= 1
             if new_h % 2: new_h -= 1
-
             sprite = pygame.transform.smoothscale(img, (new_w, new_h))
-
-            # centrar
             x = rect.centerx - new_w // 2
             y = rect.centery - new_h // 2
             self.pantalla.blit(sprite, (x, y))
-            return  
-            
-        # ---------- MINAS ----------
-        if tipo in ("01", "02", "T1", "T2", "G1"):
-            colores_mina = {
-                "01": (121, 82, 39),      
-                "02": (119, 40, 39),    
-                "T1": (39, 118, 119),    
-                "T2": (118, 119, 39),    
-                "G1": (39, 78, 119),    
-            }
-            color = colores_mina.get(tipo, (200, 0, 0))
-            r = pygame.Rect(rect.centerx - lado // 2,
-                            rect.centery - lado // 2,
-                            lado, lado)
-            pygame.draw.rect(self.pantalla, color, r)
-            pygame.draw.rect(self.pantalla, (25, 25, 25), r, 1)
             return
+
+        # Fallback si no hay PNG (ej: minas)
+        if tipo in ("01","02","O1","O2","T1","T2","G1"):
+            colores = {
+                "01": (121, 82, 39), "O1": (121, 82, 39),
+                "02": (119, 40, 39), "O2": (119, 40, 39),
+                "T1": (39, 118, 119),
+                "T2": (118, 119, 39),
+                "G1": (39, 78, 119),
+            }
+            color = colores.get(tipo, (200, 0, 0))
+            lado = int(min(max_w, max_h) * fill_ratio)
+            r = pygame.Rect(rect.centerx - lado//2, rect.centery - lado//2, lado, lado)
+            pygame.draw.rect(self.pantalla, color, r, border_radius=3)
+            pygame.draw.rect(self.pantalla, (25,25,25), r, 1, border_radius=3)
+
 
 
     def draw_from_tablero(self):
@@ -370,12 +556,19 @@ class Visualizer:
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = self.tablero.matriz[fila][col]
-                if celda in ("0", 0, None, ""):
-                    continue
-                rect = self.cell_to_rect(col, fila, pad=4)
-                self.draw_item(celda, rect)
-    
+                if celda not in (0, "0", None, ""):
+                    rect = self.cell_to_rect(col, fila, pad=2)
 
+                    # --- 👇 Ajuste de escala lateral ---
+                    if col == 0 or col == self.columnas - 1:
+                        extra_scale = 1.1   # 10% más grande en las bases
+                    else:
+                        extra_scale = 1.0
+
+                    self.draw_item(celda, rect.inflate(
+                        int(rect.width * (extra_scale - 1)),
+                        int(rect.height * (extra_scale - 1))
+                    ))
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):
         """Actualiza el número que se muestra en el HUD. None = no mostrar."""
@@ -386,3 +579,78 @@ class Visualizer:
         m, ss = divmod(max(0, int(s)), 60)
         return f"{m:02d}:{ss:02d}"
 
+class ButtonBar:
+    def __init__(self, rect: pygame.Rect, font: pygame.font.Font,
+                 color_panel, color_border, color_text):
+        self.rect = rect
+        self.font = font
+        self.color_panel = color_panel
+        self.color_border = color_border
+        self.color_text = color_text
+        self.buttons = []
+        self.callbacks = {}  # key -> function
+
+    def add_button(self, key: str, text: str, enabled=True, callback=None):
+        self.callbacks[key] = callback
+        self.buttons.append({
+            "key": key,
+            "text": text,
+            "enabled": enabled,
+            "rect": None,  # se calcula en layout
+        })
+
+    def layout(self, gap=12):
+        """Distribuye los botones centrados dentro del rect."""
+        n = len(self.buttons)
+        if n == 0: return
+        btn_w, btn_h = 130, 38
+        total_w = n * btn_w + (n - 1) * gap
+        start_x = self.rect.centerx - total_w // 2
+        y = self.rect.centery - btn_h // 2
+        for i, b in enumerate(self.buttons):
+            x = start_x + i * (btn_w + gap)
+            b["rect"] = pygame.Rect(x, y, btn_w, btn_h)
+
+    def draw(self, surface: pygame.Surface):
+        mx, my = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()[0]
+
+        for b in self.buttons:
+            if not b["rect"]:
+                continue
+            r = b["rect"]
+            enabled = b.get("enabled", True)
+            hover = enabled and r.collidepoint((mx, my))
+            pressed = hover and click
+
+            if not enabled:
+                fill = tuple(max(0, c - 40) for c in self.color_panel)
+            elif pressed:
+                fill = tuple(max(0, c - 25) for c in self.color_panel)
+            elif hover:
+                fill = tuple(min(255, c + 15) for c in self.color_panel)
+            else:
+                fill = self.color_panel
+
+            pygame.draw.rect(surface, fill, r, border_radius=8)
+            pygame.draw.rect(surface, self.color_border, r, 2, border_radius=8)
+
+            col_text = self.color_text if enabled else (160, 150, 140)
+            txt = self.font.render(b["text"], True, col_text)
+            surface.blit(txt, txt.get_rect(center=r.center))
+
+    def handle_event(self, e):
+        """Devuelve la key del botón presionado o ejecuta su callback."""
+        if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+            for b in self.buttons:
+                if b["enabled"] and b["rect"] and b["rect"].collidepoint(e.pos):
+                    cb = self.callbacks.get(b["key"])
+                    if cb:
+                        cb()
+                    return b["key"]
+        return None
+
+    def enable(self, key: str, val: bool):
+        for b in self.buttons:
+            if b["key"] == key:
+                b["enabled"] = bool(val)

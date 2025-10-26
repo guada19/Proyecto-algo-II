@@ -4,7 +4,7 @@ from src.visualization import Visualizer
 
 
 def main():
-    tablero = Tablero(ancho=20, largo=20)  # usa tus valores reales
+    tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
     tablero.initialization_simulation()
 
     viz = Visualizer(tablero)
