@@ -149,7 +149,8 @@ class Tablero:
             "matriz": copy.deepcopy(self.matriz),
             "colisiones": set(self.colisiones_visible),
             "colisiones_just_added": set(self.colisiones_just_added),
-            "minas_overlay": []
+            "minas_overlay": [],
+            "step_count": int(getattr(self, "step_count", 0))
         }
         # Registrar estado/visibilidad de cada mina en el frame
         for m in self.minas:
@@ -466,15 +467,18 @@ class Tablero:
 
         # Actualizar matriz
         self.actualizar_matriz()
-        # Guardar el nuevo estado en el historial 
-        self._guardar_estado_en_historial()
-        # Se asegura de estar al final del historial
-        self.indice_historial = len(self.historial_matrices) - 1
-        # avanzar contador de pasos (usa esto para efectos temporales como G1)
+
+        # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
         try:
             self.step_count += 1
         except Exception:
             self.step_count = getattr(self, "step_count", 0) + 1
+
+        # Guardar el nuevo estado en el historial 
+        self._guardar_estado_en_historial()
+        # Se asegura de estar al final del historial
+        self.indice_historial = len(self.historial_matrices) - 1
+
         # Si alcanzamos 60 pasos, detener la simulación igual que si se presionara STOP
         if getattr(self, "step_count", 0) >= 60:
             # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
