@@ -104,9 +104,44 @@ class Visualizer:
         # para dejar más espacio a la grilla central en 50x50.
         self._compute_layout(margen = 40, base_px = 70)
 
+        self._cargar_sprites()
+
         self.buttons = self._create_buttons()
         # Track last frame index to play collision sound only once per new live frame
         self._last_played_collision_frame = -1
+
+    def _cargar_sprites(self):
+        self.img_cache = {}
+
+        def load(name):
+            ruta = os.path.join(os.path.dirname(__file__), "..", "data", "imagenes", name)
+            if not os.path.exists(ruta):
+                print(f"⚠️ Archivo no encontrado: {ruta}")
+                return None
+            try:
+                # ahora sí: convert_alpha, ya hay display
+                return pygame.image.load(ruta).convert_alpha()
+            except Exception as e:
+                print(f"⚠️ No se pudo cargar {name}: {e} ({ruta})")
+                return None
+
+        #Vehiculos
+        self.img_cache["J"] = load("jeep2.png")
+        self.img_cache["M"] = load("moto2.png")
+        self.img_cache["C"] = load("camion2.png") 
+        self.img_cache["A"] = load("auto2.png")
+        #Recursos
+        self.img_cache["r"] = load("ropa.png")
+        self.img_cache["c"] = load("comida.png")
+        self.img_cache["m"] = load("medicina.png")
+        self.img_cache["PER"] = load("persona.png")
+        self.img_cache["a"] = load("armamento.png")
+        #Minas
+        self.img_cache["01"] = load("minaO1.png")
+        self.img_cache["02"] = load("minaO2.png")
+        self.img_cache["T1"] = load("minaT1.png")
+        self.img_cache["T2"] = load("minaT2.png")
+        self.img_cache["G1"] = load("minaG1.png")
 
     def _create_buttons(self):
         """Crea los botones de control y administra su habilitación según estado."""
@@ -346,14 +381,16 @@ class Visualizer:
         return pygame.Rect(x + pad, y + pad, max(1, w - 2*pad), max(1, h - 2*pad))
 
     
+
+    
     def draw_item(self, label, rect):
         """
         Dibuja un item en 'rect'. Si es un vehículo, dibuja el círculo 
         y la etiqueta de identificación (Punto 3).
         """
         base_h = rect.height
-        radio  = max(5, int(base_h * 0.45))
-        lado   = max(6, int(base_h * 0.90))
+        radio  = max(5, int(base_h * 1.5))
+        lado   = max(6, int(base_h * 2.0))
 
         # Tipos de Minas
         if label in ("01", "02", "T1", "T2", "G1"):
