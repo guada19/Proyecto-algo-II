@@ -42,7 +42,7 @@ def costo_extra(tablero, pos):
     """
     x, y = pos
     if tablero.colision_minas(x, y):
-        return 20 #este es el costo extra que se le agrega  
+        return 1000 #este es el costo extra que se le agrega  
     return 0
 
 def a_star(vehiculo, tablero, pos_obj):

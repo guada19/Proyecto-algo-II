@@ -10,6 +10,11 @@ def main():
     #tablero.set_sim_state("paused") 
     
     viz = Visualizer(tablero)
+    tablero.initialization_simulation() 
+    tablero.actualizar_matriz()                   
+    tablero._guardar_estado_en_historial()        
+    tablero.set_sim_state("paused")
+    
     
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible

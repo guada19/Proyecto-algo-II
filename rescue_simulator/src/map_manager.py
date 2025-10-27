@@ -275,21 +275,10 @@ class Tablero:
 
         if self.step_count >= 60:
             self.set_sim_state("stopped")
-    
-    def colision_vehiculos_para_a_star(self, x, y):
-        
-        for v in self.vehiculos:
-            if v.estado == "activo" and v.posicion == (x, y):
-                return True
-        return False
-    
-    def start_simulation(self):
-        #Acá es donde cada jugador debería ejecutar su propia estrategia
-        
-        #NUEVO
+            
+                #NUEVO
         # Actualizar matriz
-        self.actualizar_matriz()
-
+        #self.actualizar_matriz()
         # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
         try:
             self.step_count += 1
@@ -306,6 +295,17 @@ class Tablero:
             # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
             self.set_sim_state("stopped")
             return
+    
+    def colision_vehiculos_para_a_star(self, x, y):
+        
+        for v in self.vehiculos:
+            if v.estado == "activo" and v.posicion == (x, y):
+                return True
+        return False
+    
+    def start_simulation(self):
+        #Acá es donde cada jugador debería ejecutar su propia estrategia
+        pass
 
     def actualizar_matriz(self):
         # 1. Limpiar matriz
@@ -323,7 +323,7 @@ class Tablero:
             if r.estado == "disponible":
                 x, y = pos
                 if 0 <= x < self.largo and 0 <= y < self.ancho:
-                    self.matriz[x][y] = 'P' if r.categoria == "persona" else r.subtipo[0] 
+                    self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
         for v in self.vehiculos:
@@ -335,7 +335,6 @@ class Tablero:
         for v in self.vehiculos:
             x_ant, y_ant = v.posicion_anterior
             if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
-                # El recurso todavía está ahí, no borramos nada
                 pass
             else:
                 self.matriz[x_ant][y_ant] = "0"
@@ -347,9 +346,6 @@ class Tablero:
     def mostrar_tablero(self):
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
-        
-        print("")
-        print("")
 
 
     #función para saber si la columna del tablero es base
@@ -414,10 +410,10 @@ class Tablero:
     def set_sim_state(self, new_state):
         #"""Establece el estado de la simulación y realiza acciones de inicio/parada."""
         if new_state == "init":
-             # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
-             self.game_finished = False
-             self.initialization_simulation()
-             self.sim_state = "running" # Inicia corriendo automáticamente
+            # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
+            self.game_finished = False
+            self.initialization_simulation()
+            self.sim_state = "running" # Inicia corriendo automáticamente
         elif new_state == "stopped":
             # Detener la simulación y limpiar TODOS los elementos visibles
             self.sim_state = "stopped"

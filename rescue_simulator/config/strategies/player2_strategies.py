@@ -13,6 +13,8 @@ class Estrategia_J2:
             
             if vehiculo.posicion == objetivo:
                 return None
+            else:
+                return (vehiculo.x, objetivo)
         
         else:
             
