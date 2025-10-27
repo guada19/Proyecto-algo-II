@@ -13,6 +13,10 @@ class Vehiculo:
         self.jugador = jugador
         self.max_viajes = max_viajes
         self.carga_actual = []
+        self.estrategia = None                  
+        self.camino_restante = []               
+        self.posicion_intencionada = self.posicion
+    
     
     @property
     def posicion(self):
@@ -44,27 +48,22 @@ class Vehiculo:
         return False
             
     def volver_a_la_base(self, tablero):
-        # si la base del jugador es la izquierda
-        if self.jugador == "J1":
-            if self.y > 0:
-                self.y -= 1
-        # si la base del jugador es la derecha
-        elif self.jugador == "J2":
-            if self.y < tablero.ancho - 1:
-                self.y += 1
-
-        # Si ya está en la base, entrega
-        if self.y == 0 or self.y == tablero.ancho - 1:
-            tablero.registrar_entrega(self)
+        pass
     
     
     def detectar_colision(self):
         pass
     
-    def destruir(self):
-        #Marca el vehículo como destruido.
-        self.estado = "destruido"
     
+    def destruir(self):
+        self.estado = "destruido"
+        self.x, self.y = -1, -1 
+        self.posicion_intencionada = (-1, -1)
+        self.destruir_carga() 
+        
+    def destruir_carga(self):
+        for carga in self.carga_actual:
+            carga.destruirse()
     
     """
     Esta funcion ya no la veo como útil porque la estrategia está en cada uno de los jugadores

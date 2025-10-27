@@ -2,45 +2,75 @@ import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
 
-
 def main():
-    tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
-    tablero.initialization_simulation()
-
+    # Inicialización del tablero y visualizador
+    tablero = Tablero(ancho=50, largo=40) 
+    # Asegúrate de que initialization_simulation() y set_sim_state() existen en Tablero
+    #tablero.initialization_simulation() 
+    #tablero.set_sim_state("paused") 
+    
     viz = Visualizer(tablero)
     
+    # Temporizador de la simulación
+    TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
+    ultimo_paso_tiempo = pygame.time.get_ticks()
+
     # 3) loop de visualización
     running = True
     while running:
+        tiempo_actual = pygame.time.get_ticks()
+        
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 running = False
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_r:
-                    # regenerar mapa: recursos/minas nuevas
+            
+            # --- MANEJO CENTRALIZADO DE EVENTOS ---
+            # Si el evento es un clic o una tecla, el Visualizer lo procesa.
+            
+            # 1. Manejo de clics/botones (MOUSEDOWN/MOUSEUP)
+            if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+                 # Esta línea debe llamar al método del Visualizer que procesa los clics
+                 viz.handle_button_click(e) 
+            
+            # 2. Manejo de teclas
+            if e.type == pygame.KEYDOWN:
+                
+                # A. Botón SPACE para Play/Pause
+                if e.key == pygame.K_SPACE:
+                    viz._do_pause_resume() # Llama directamente al método que alterna el estado
+
+                # B. Teclas de Replay (<< y >>)
+                elif e.key == pygame.K_LEFT:
+                    viz._do_prev()
+                elif e.key == pygame.K_RIGHT:
+                    viz._do_next()
+                    
+                # C. Teclas de Debug (R y V)
+                elif e.key == pygame.K_r:
                     tablero.inicializar_elementos_aleatoriamente()
                     tablero.actualizar_matriz()
+                    tablero._guardar_estado_en_historial()
                 elif e.key == pygame.K_v:
-                    # re-spawn de vehículos (opcional)
                     tablero.inicializar_vehiculos()
                     tablero.actualizar_matriz()
+                    tablero._guardar_estado_en_historial()
 
-        # dibujar frames
+        # --- Lógica de la Simulación (Tick Controlado) ---
+        if tablero.sim_state == "running":
+            # Avanza el juego si ha pasado el tiempo definido (200ms)
+            if tiempo_actual - ultimo_paso_tiempo >= TIEMPO_PASO_MS:
+                tablero.ejecutar_un_paso_simulacion() 
+                ultimo_paso_tiempo = tiempo_actual
+        
+        # --- Dibujar frame ---
         viz.pantalla.fill(viz.color_fondo)
         viz.draw_grid()
-        viz.draw_from_tablero()   # ← pinta R/X/J/M/C/A según matriz
+        viz.draw_buttons() # Dibuja los botones (se encarga del hover/press)
+        viz.draw_from_tablero() 
         pygame.display.flip()
         viz.clock.tick(60)
 
-    pygame.quit()    
+    pygame.quit() 
     
-    #Prueba por consola para revisar que los vehiculos se meuven
-    tablero.start_simulation()
-    #viz.run()
-    
-    
-
 if __name__ == "__main__":
     main()
-
-

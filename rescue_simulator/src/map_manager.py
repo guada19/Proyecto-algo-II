@@ -2,8 +2,11 @@ from src.aircraft import *
 from src.mines import *
 from src.resources import *
 from src.base import *
-from config.strategies.player2_strategies import Estrategia
+from config.strategies.player1_strategies import Estrategia_J1
+from config.strategies.player2_strategies import Estrategia_J2
 import random
+import math
+import copy
 
 
 class Tablero:
@@ -32,6 +35,8 @@ class Tablero:
         self.sim_state = "stopped" 
         self.historial_matrices = [] 
         self.indice_historial = 0
+        self.colisiones_visible = set()    # Colisiones que están visibles en el historial
+        self.colisiones_just_added = set()
 
         # contador de pasos de simulación 
         self.step_count = 0
@@ -125,38 +130,161 @@ class Tablero:
                     nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
                     base_actual.vehiculos.append(nuevo_vehiculo)
                     self.vehiculos.append(nuevo_vehiculo) 
+        
+        #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
+        estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
+
+        for vehiculo in self.vehiculos:
+            if vehiculo.jugador == 1:
+                #vehiculo.estrategia = estrategia_j1
+                continue
+            elif vehiculo.jugador == 2:
+                vehiculo.estrategia = estrategia_j2
+        
         self.actualizar_matriz()
-
-    #-----------------------------------------------------------------------------------------------------------
-    """
-    esto es solo para probar que el movimiento funcione de manera correcta, no sé en donde va a estar lo de las colisiones
-    así que lo puse acá nada más para probar no es nada muy interesante después se borra
-    """
-    def colision_minas(self, x, y):
-    # Devuelve True si la celda está dentro del radio de alguna mina
-    # Para simplificar, asumimos radio=1
-        for mx, my in self.pos_minas:
-            if abs(mx - x) <= 1 and abs(my - y) <= 1:
-                return True
-        return False
-
-    def colision_vehiculos(self, x, y):
-        # Para este ejemplo, asumimos que no hay otros vehículos
-        return False
-    #------------------------------------------------------------------------------------------------------------
     
+    def colision_minas(self, pos_x, pos_y):
+        """
+        Verifica si la posición (pos_x, pos_y) está dentro del radio de efecto de CUALQUIER mina activa.
+        Esta función es usada por el motor del juego y el A* para EVITAR la zona.
+        """
+        for mine in self.minas:
+            if mine.estado != "activa":
+                continue
+
+            mx, my = mine.posicion
+            radio = mine.radio 
+
+            if mine.tipo in ["01", "02", "G1"]: 
+                distance = math.sqrt((pos_x - mx)**2 + (pos_y - my)**2)
+                if distance <= radio:
+                    return True
+                
+            elif mine.tipo == "T1": 
+                if pos_x == mx and abs(pos_y - my) <= radio:
+                     return True
+
+            elif mine.tipo == "T2": 
+                if pos_y == my and abs(pos_x - mx) <= radio:
+                     return True
+
+        return False
+
+    def colision_vehiculos(self, vehicles_to_destroy):
+        """
+        Detecta colisiones por superposición de 'posicion_intencionada' 
+        y añade los vehículos involucrados al set de destrucción.
+        """
+        intended_positions = {} 
+
+        for vehiculo in self.vehiculos:
+            if vehiculo.estado == "activo" and vehiculo not in vehicles_to_destroy:
+
+                pos = vehiculo.posicion_intencionada
+
+                if pos == vehiculo.posicion and self.es_base(pos[1]):
+                    continue 
+
+                if pos not in intended_positions:
+                    intended_positions[pos] = []
+
+                intended_positions[pos].append(vehiculo)
+
+        for pos, competing_vehicles in intended_positions.items():
+            if len(competing_vehicles) > 1:
+                for vehiculo in competing_vehicles:
+                    vehicles_to_destroy.add(vehiculo)
+
+        return vehicles_to_destroy
+
+    
+    def detectar_y_ejecutar_fallas(self):
+        """
+        Paso 4: Detecta colisiones basadas en la posición intencionada y ejecuta la destrucción.
+        """
+        vehicles_to_destroy = set()
+        
+        for vehiculo in self.vehiculos:
+            if vehiculo.estado == "activo":
+                x_int, y_int = vehiculo.posicion_intencionada
+                
+                if self.colision_minas(x_int, y_int):
+                    vehicles_to_destroy.add(vehiculo)
+        
+        vehicles_to_destroy = self.colision_vehiculos(vehicles_to_destroy) 
+
+        for vehiculo in vehicles_to_destroy:
+            vehiculo.destruir() 
+    
+    
+        
     def initialization_simulation(self):
         self.inicializar_elementos_aleatoriamente()
         self.inicializar_vehiculos()
         self.actualizar_matriz()
         self.mostrar_tablero()
         
-         
+
+    def update_mobile_elements(self):
+        """Llama a la lógica de movimiento y estado de elementos dinámicos (ej. Mina G1)."""
+        
+        for m in self.minas:
+            if m.tipo == "G1":
+                m.actualizar_estado(self.step_count, self)
+    
+    
+    def ejecutar_un_paso_simulacion(self):
+        """
+        Ejecuta todas las acciones que ocurren en una única instancia de tiempo (tick).
+        Llamada una vez por cada "segundo" de simulación por el bucle principal de Pygame.
+        """
+        
+        if self.sim_state != "running":
+            return
+            
+
+        self.step_count += 1
+        
+ 
+        self.update_mobile_elements() 
+        
+        for vehiculo in self.vehiculos:
+            if vehiculo.estado == "activo" and vehiculo.estrategia:
+                proximo_paso = vehiculo.estrategia.obtener_siguiente_paso(vehiculo) 
+                
+                if proximo_paso:
+                    vehiculo.posicion_intencionada = proximo_paso
+                else:
+                    vehiculo.posicion_intencionada = vehiculo.posicion 
+            elif vehiculo.estado != "activo":
+                
+                vehiculo.posicion_intencionada = (-1, -1)
+
+        self.detectar_y_ejecutar_fallas() 
+        
+        for vehiculo in self.vehiculos:
+            if vehiculo.estado == "activo":
+                vehiculo.mover(vehiculo.posicion_intencionada)
+                
+                self.registrar_entrega(vehiculo) 
+                vehiculo.agarrar_recurso(self) 
+        
+        
+        self.actualizar_matriz() 
+        self._guardar_estado_en_historial()
+
+        if self.step_count >= 60:
+            self.set_sim_state("stopped")
+    
+    def colision_vehiculos_para_a_star(self, x, y):
+        
+        for v in self.vehiculos:
+            if v.estado == "activo" and v.posicion == (x, y):
+                return True
+        return False
+    
     def start_simulation(self):
         #Acá es donde cada jugador debería ejecutar su propia estrategia
-        estrategia_j2 = Estrategia(self.bases[2].jugador, self.bases[2], self)
-        self.bases[2].asignar_estrategia(estrategia_j2)
-        estrategia_j2.ejecutar_estrategia()
         
         #NUEVO
         # Actualizar matriz
@@ -202,7 +330,7 @@ class Tablero:
             x, y = v.posicion
             if 0 <= x < self.largo and 0 <= y < self.ancho:
                  self.matriz[x][y] = v.tipo[0]
-
+    
     def actualizar_matriz_parcial(self):
         for v in self.vehiculos:
             x_ant, y_ant = v.posicion_anterior
@@ -222,9 +350,6 @@ class Tablero:
         
         print("")
         print("")
-        print("")
-        print("")
-
 
 
     #función para saber si la columna del tablero es base
@@ -283,13 +408,11 @@ class Tablero:
         vehiculo.carga_actual.clear()
         print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
 
-
-
 #---Funciones que se quedan ---
 
     # --- Métodos de Control de la Simulación ---
     def set_sim_state(self, new_state):
-        """Establece el estado de la simulación y realiza acciones de inicio/parada."""
+        #"""Establece el estado de la simulación y realiza acciones de inicio/parada."""
         if new_state == "init":
              # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
              self.game_finished = False
@@ -314,7 +437,7 @@ class Tablero:
             self.sim_state = new_state
             
     def toggle_sim_state(self):
-        """Alterna entre running y paused."""
+        #"""Alterna entre running y paused."""
         if self.sim_state == "running":
             self.sim_state = "paused"
         elif self.sim_state == "paused":
@@ -324,7 +447,7 @@ class Tablero:
             self.sim_state = "paused"
         
     def _guardar_estado_en_historial(self):
-        """Guarda la matriz actual como una nueva entrada en el historial."""
+        #"""Guarda la matriz actual como una nueva entrada en el historial."""
         # Si estamos "atrás" en el historial, borramos el futuro antes de añadir uno nuevo
         if self.indice_historial < len(self.historial_matrices) - 1:
             self.historial_matrices = self.historial_matrices[:self.indice_historial + 1]
@@ -332,6 +455,7 @@ class Tablero:
         # Construir frame con overlays (copias, para que el historial sea inmutable)
         frame = {
             "matriz": copy.deepcopy(self.matriz),
+            # ESTAS LÍNEAS YA NO DEBERÍAN CAUSAR ERROR:
             "colisiones": set(self.colisiones_visible),
             "colisiones_just_added": set(self.colisiones_just_added),
             "minas_overlay": [],
@@ -355,7 +479,7 @@ class Tablero:
         # ...existing code...
 
     def obtener_frame_actual(self):
-        """Retorna el frame completo (matriz + overlays) correspondiente al índice actual."""
+        #"""Retorna el frame completo (matriz + overlays) correspondiente al índice actual."""
         if not self.historial_matrices:
             return {
                 "matriz": copy.deepcopy(self.matriz),
@@ -375,12 +499,12 @@ class Tablero:
         return entry
 
     def obtener_matriz_historial(self):
-        """Compatibilidad: retorna solo la matriz del frame actual (método usado anteriormente)."""
+        #""""""Compatibilidad: retorna solo la matriz del frame actual (método usado anteriormente).""""""
         frame = self.obtener_frame_actual()
         return frame.get("matriz", self.matriz)
 
     def prev_frame(self):
-        """Retrocede un paso en el historial (Botón <<)."""
+        #"""Retrocede un paso en el historial (Botón <<)."""
         if self.indice_historial > 0:
             self.indice_historial -= 1
             # Forzar la pausa al moverse en el historial
@@ -388,7 +512,8 @@ class Tablero:
                 self.sim_state = "paused"
 
     def next_frame(self):
-        """Avanza un paso en el historial (Botón >>)."""
+        
+        #"""Avanza un paso en el historial (Botón >>)."""
         if self.indice_historial < len(self.historial_matrices) - 1:
             self.indice_historial += 1
             # Forzar la pausa al moverse en el historial
@@ -397,5 +522,3 @@ class Tablero:
         elif self.sim_state == "running":
              # Si estamos al final y la simulación está corriendo, realiza el siguiente paso
              self.ejecutar_un_paso_simulacion()
-
-

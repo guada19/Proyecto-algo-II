@@ -4,6 +4,8 @@ class Resource():
         self.puntaje = puntaje
         self.estado = estado 
         self.categoria = categoria
+        self.asignado_a = None
+    
     
     def recolectado(self):
         self.estado = "recolectado"
