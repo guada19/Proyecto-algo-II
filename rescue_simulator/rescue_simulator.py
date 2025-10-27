@@ -2,7 +2,6 @@ import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
 
-
 def main():
     #Main rama Andre
     """tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
@@ -61,11 +60,9 @@ def main():
                     tablero.actualizar_matriz()
                     tablero._guardar_estado_en_historial()
                 elif e.key == pygame.K_v:
-
                     tablero.inicializar_vehiculos()
                     tablero.actualizar_matriz()
                     tablero._guardar_estado_en_historial()
-
 
         # --- Lógica de la Simulación (Tick Controlado) ---
         if tablero.sim_state == "running":
@@ -77,7 +74,6 @@ def main():
         # --- Dibujar frame ---
         viz.pantalla.fill(viz.color_fondo)
         viz.draw_grid()
-
         viz.draw_buttons() # Dibuja los botones (se encarga del hover/press)
         viz.draw_from_tablero() 
         pygame.display.flip()
@@ -88,5 +84,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

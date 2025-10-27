@@ -10,12 +10,15 @@ font_3 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "Sixtyfo
 
 #Clase que muestra todo en pantalla
 class Visualizer:
-    """
-    Visualizador simple para el Tablero.
+
+    """Visualizador simple para el Tablero.
     - columnas = tablero.ancho, filas = tablero.largo
     - bases: col 0 (B1) y col columnas-1 (B2) dentro del tablero
     - colores por contenido de celda en draw_from_tablero()
     """
+    
+    
+    
     #Inicializa el tablero
     def __init__(self, tablero, ancho=1100, alto=900):
         
@@ -64,6 +67,13 @@ class Visualizer:
         self._cargar_sprites()
         self._build_buttons()
 
+    def handle_button_click(self, e):
+        """Procesa el clic del mouse y llama a la acción correspondiente."""
+        for b in self.buttons:
+            if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self._on_button(b["key"])
+                break
+    
     def _cargar_sprites(self):
         self.img_cache = {}
 
@@ -135,10 +145,10 @@ class Visualizer:
         pygame.quit()
 
     def _compute_layout(self, margen=28, base_px=90, target_cell_px=44):
-        """
-        Calcula layout centrado y agranda todo automáticamente,
-        sin exceder el tamaño de pantalla (cap a 95% ancho / 92% alto).
-        """
+
+        #Calcula layout centrado y agranda todo automáticamente,
+        #sin exceder el tamaño de pantalla (cap a 95% ancho / 92% alto).
+
         self.columnas = int(self.tablero.ancho)
         self.filas    = int(self.tablero.largo)
 
@@ -386,12 +396,17 @@ class Visualizer:
             try: self.tablero.next_frame()
             except Exception: pass
 
+<<<<<<< HEAD
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
                 self._on_button(b["key"])
                 break
+=======
+    
+
+>>>>>>> origin/guada
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
@@ -517,10 +532,10 @@ class Visualizer:
 
     #permite que las bases sean consideradas dentro del tablero
     def cell_to_rect(self, col: int, fila: int, pad: int = 2) -> pygame.Rect:
-        """
-        Devuelve el rectángulo 'dibujable' de la celda (col,fila),
-        centrado exactamente dentro del bloque de la celda y con padding simétrico.
-        """
+
+        #Devuelve el rectángulo 'dibujable' de la celda (col,fila),
+        #centrado exactamente dentro del bloque de la celda y con padding simétrico.
+
         assert 0 <= col < self.columnas and 0 <= fila < self.filas
 
         # Coordenadas y tamaño "crudo" de la celda (sin pad)
@@ -551,10 +566,10 @@ class Visualizer:
         return rect
 
     def draw_item(self, tipo: str, rect: pygame.Rect):
-        """
-        Dibuja el sprite ocupando la mayor parte de la celda.
-        Se adapta al tamaño de 'rect' y mantiene proporción.
-        """
+
+        #Dibuja el sprite ocupando la mayor parte de la celda.
+        #Se adapta al tamaño de 'rect' y mantiene proporción.
+
         img = self.img_cache.get(tipo) if hasattr(self, "img_cache") else self.img.get(tipo)
 
         # Ratios por categoría (porcentaje del lado de la celda)
@@ -607,7 +622,7 @@ class Visualizer:
 
 
     def draw_from_tablero(self):
-        """Pinta todo lo no-vacío de tablero.matriz usando cell_to_rect(col,fila)."""
+        #Pinta todo lo no-vacío de tablero.matriz usando cell_to_rect(col,fila).
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = self.tablero.matriz[fila][col]
@@ -625,7 +640,7 @@ class Visualizer:
                     ))
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):
-        """Actualiza el número que se muestra en el HUD. None = no mostrar."""
+        #Actualiza el número que se muestra en el HUD. None = no mostrar.
         self.timer_seconds = seconds
 
     def _format_time(self, s:int) -> str:
@@ -654,7 +669,7 @@ class ButtonBar:
         })
 
     def layout(self, gap=12):
-        """Distribuye los botones centrados dentro del rect."""
+        #Distribuye los botones centrados dentro del rect.
         n = len(self.buttons)
         if n == 0: return
         btn_w, btn_h = 130, 38
@@ -694,7 +709,7 @@ class ButtonBar:
             surface.blit(txt, txt.get_rect(center=r.center))
 
     def handle_event(self, e):
-        """Devuelve la key del botón presionado o ejecuta su callback."""
+        #Devuelve la key del botón presionado o ejecuta su callback.
         if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
             for b in self.buttons:
                 if b["enabled"] and b["rect"] and b["rect"].collidepoint(e.pos):
