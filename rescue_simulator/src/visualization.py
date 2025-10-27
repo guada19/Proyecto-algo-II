@@ -66,6 +66,7 @@ class Visualizer:
 
         self._cargar_sprites()
         self._build_buttons()
+        
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
@@ -335,7 +336,7 @@ class Visualizer:
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
 
-        print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
+        #print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
 
     def _do_play_pause(self):
         """
@@ -350,13 +351,12 @@ class Visualizer:
         if sim_state in ("init", "paused", "stopped"):
             # pasamos a running
             self.tablero.set_sim_state("running")
-
             # si aún no hay rutas (primera vez), generarlas con estrategia J2
             if not getattr(self.tablero, "ruta_activa", {}):
                 try:
                     self.tablero.start_simulation()
                 except Exception as e:
-                    print(f"⚠️ No se pudo iniciar simulación: {e}")
+                    print(f" No se pudo iniciar simulación: {e}")
 
             # actualizar interfaz: ahora el botón debe decir "Pause"
             self._set_button_text("play", "Pause")
@@ -364,7 +364,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", False)
             self._set_enabled("next", False)
-            print("▶️ Simulación corriendo...")
+            #print("▶️ Simulación corriendo...")
 
         # --- Si está corriendo, pausar ---
         elif sim_state == "running":
@@ -374,7 +374,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
-            print("⏸️ Simulación pausada.")
+            #print("⏸️ Simulación pausada.")
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -396,17 +396,12 @@ class Visualizer:
             try: self.tablero.next_frame()
             except Exception: pass
 
-<<<<<<< HEAD
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
                 self._on_button(b["key"])
                 break
-=======
-    
-
->>>>>>> origin/guada
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
@@ -638,6 +633,7 @@ class Visualizer:
                         int(rect.width * (extra_scale - 1)),
                         int(rect.height * (extra_scale - 1))
                     ))
+
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):
         #Actualiza el número que se muestra en el HUD. None = no mostrar.
