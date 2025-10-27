@@ -5,8 +5,13 @@ from src.base import *
 from config.strategies.player1_strategies import Estrategia_J1
 from config.strategies.player2_strategies import Estrategia_J2
 import random
+<<<<<<< HEAD
+import copy
+import math
+=======
 import math
 import copy
+>>>>>>> origin/guada
 
 
 class Tablero:
@@ -40,6 +45,15 @@ class Tablero:
 
         # contador de pasos de simulación 
         self.step_count = 0
+
+    """#Nuevo
+        #Rutas por vehiculo
+        self.path_ida = {}     # v -> [(x,y), ...] camino acumulado de ida
+        self.ruta_activa = {}  # v -> [(x,y), ...] ruta que está siguiendo ahora (ida o regreso)
+        self.ruta_idx = {}     # v -> índice en la ruta actual
+        self.returning = set() # {v} vehículos en modo regreso a base
+    """
+        
     
     def _crear_elementos(self):
         """Genera y retorna la lista de 65 objetos Resource y Mine."""
@@ -127,9 +141,75 @@ class Tablero:
                         y = self.ancho-1
                         Vehiculo.filas_por_jugador[2] += 1
                 
-                    nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
+                    nuevo_vehiculo = clase(posicion=(x, y), jugador=("J1" if jugador==1 else "J2"))
                     base_actual.vehiculos.append(nuevo_vehiculo)
                     self.vehiculos.append(nuevo_vehiculo) 
+<<<<<<< HEAD
+
+             #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
+            estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
+
+            for vehiculo in self.vehiculos:
+                if vehiculo.jugador == "J1":
+                    #vehiculo.estrategia = estrategia_j1
+                    continue
+                elif vehiculo.jugador == "J2":
+                    vehiculo.estrategia = estrategia_j2
+
+        self.actualizar_matriz()
+
+    def colision_minas(self, pos_x, pos_y):
+        """
+        Verifica si la posición (pos_x, pos_y) está dentro del radio de efecto de CUALQUIER mina activa.
+        Esta función es usada por el motor del juego y el A* para EVITAR la zona.
+        """
+        for mine in self.minas:
+            if mine.estado != "activa":
+                continue
+            mx, my = mine.posicion
+            radio = mine.radio 
+
+            if mine.tipo in ["01", "02", "G1"]: 
+                distance = math.sqrt((pos_x - mx)**2 + (pos_y - my)**2)
+                if distance <= radio:
+                    return True
+                
+            elif mine.tipo == "T1": 
+                if pos_x == mx and abs(pos_y - my) <= radio:
+                     return True
+
+            elif mine.tipo == "T2": 
+                if pos_y == my and abs(pos_x - mx) <= radio:
+                     return True
+                
+    def colision_vehiculos(self, vehicles_to_destroy):
+        """
+        Detecta colisiones por superposición de 'posicion_intencionada' 
+        y añade los vehículos involucrados al set de destrucción.
+        """
+        intended_positions = {} 
+
+        for vehiculo in self.vehiculos:
+            if vehiculo.estado == "activo" and vehiculo not in vehicles_to_destroy:
+
+                pos = vehiculo.posicion_intencionada
+
+                if pos == vehiculo.posicion and self.es_base(pos[1]):
+                    continue 
+
+                if pos not in intended_positions:
+                    intended_positions[pos] = []
+
+                intended_positions[pos].append(vehiculo)
+
+        for pos, competing_vehicles in intended_positions.items():
+            if len(competing_vehicles) > 1:
+                for vehiculo in competing_vehicles:
+                    vehicles_to_destroy.add(vehiculo)
+
+        return vehicles_to_destroy
+    
+=======
         
         #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
         estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
@@ -198,6 +278,7 @@ class Tablero:
         return vehicles_to_destroy
 
     
+>>>>>>> origin/guada
     def detectar_y_ejecutar_fallas(self):
         """
         Paso 4: Detecta colisiones basadas en la posición intencionada y ejecuta la destrucción.
@@ -215,24 +296,36 @@ class Tablero:
 
         for vehiculo in vehicles_to_destroy:
             vehiculo.destruir() 
+<<<<<<< HEAD
+     
+
+=======
     
     
         
+>>>>>>> origin/guada
     def initialization_simulation(self):
         self.inicializar_elementos_aleatoriamente()
         self.inicializar_vehiculos()
         self.actualizar_matriz()
         self.mostrar_tablero()
         
+<<<<<<< HEAD
+=======
 
+>>>>>>> origin/guada
     def update_mobile_elements(self):
         """Llama a la lógica de movimiento y estado de elementos dinámicos (ej. Mina G1)."""
         
         for m in self.minas:
             if m.tipo == "G1":
                 m.actualizar_estado(self.step_count, self)
+<<<<<<< HEAD
+
+=======
     
     
+>>>>>>> origin/guada
     def ejecutar_un_paso_simulacion(self):
         """
         Ejecuta todas las acciones que ocurren en una única instancia de tiempo (tick).
@@ -275,10 +368,27 @@ class Tablero:
 
         if self.step_count >= 60:
             self.set_sim_state("stopped")
-            
-                #NUEVO
+    
+    def colision_vehiculos_para_a_star(self, x, y):
+        
+        for v in self.vehiculos:
+            if v.estado == "activo" and v.posicion == (x, y):
+                return True
+<<<<<<< HEAD
+        return False   
+
+=======
+        return False
+    
+>>>>>>> origin/guada
+    def start_simulation(self):
+        #Acá es donde cada jugador debería ejecutar su propia estrategia
+        
+        #NUEVO
         # Actualizar matriz
         #self.actualizar_matriz()
+        #self.actualizar_matriz()
+        """
         # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
         try:
             self.step_count += 1
@@ -294,6 +404,7 @@ class Tablero:
         if getattr(self, "step_count", 0) >= 60:
             # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
             self.set_sim_state("stopped")
+            return"""
             return
     
     def colision_vehiculos_para_a_star(self, x, y):
@@ -323,6 +434,7 @@ class Tablero:
             if r.estado == "disponible":
                 x, y = pos
                 if 0 <= x < self.largo and 0 <= y < self.ancho:
+                    self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
                     self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
@@ -404,16 +516,30 @@ class Tablero:
         vehiculo.carga_actual.clear()
         print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
 
+<<<<<<< HEAD
+
+        self.actualizar_matriz()
+        # asegurarnos de guardar el estado en historial (así el cambio se ve)
+        try:
+            self._guardar_estado_en_historial()
+            self.indice_historial = len(self.historial_matrices) - 1
+        except Exception:
+            pass
+
+
+
+=======
+>>>>>>> origin/guada
 #---Funciones que se quedan ---
 
     # --- Métodos de Control de la Simulación ---
     def set_sim_state(self, new_state):
         #"""Establece el estado de la simulación y realiza acciones de inicio/parada."""
         if new_state == "init":
-            # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
-            self.game_finished = False
-            self.initialization_simulation()
-            self.sim_state = "running" # Inicia corriendo automáticamente
+             # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
+             self.game_finished = False
+             self.initialization_simulation()
+             self.sim_state = "paused" # Inicia corriendo automáticamente
         elif new_state == "stopped":
             # Detener la simulación y limpiar TODOS los elementos visibles
             self.sim_state = "stopped"
@@ -479,8 +605,8 @@ class Tablero:
         if not self.historial_matrices:
             return {
                 "matriz": copy.deepcopy(self.matriz),
-                "colisiones": set(),
-                "colisiones_just_added": set(),
+#                "colisiones": set(),
+#                "colisiones_just_added": set(),
                 "minas_overlay": []
             }
         entry = self.historial_matrices[self.indice_historial]
@@ -488,8 +614,8 @@ class Tablero:
         if isinstance(entry, list):
             return {
                 "matriz": copy.deepcopy(entry),
-                "colisiones": set(),
-                "colisiones_just_added": set(),
+#               "colisiones": set(),
+#                "colisiones_just_added": set(),
                 "minas_overlay": []
             }
         return entry
@@ -517,4 +643,114 @@ class Tablero:
                 self.sim_state = "paused"
         elif self.sim_state == "running":
              # Si estamos al final y la simulación está corriendo, realiza el siguiente paso
+<<<<<<< HEAD
              self.ejecutar_un_paso_simulacion()
+
+
+    #NUEVOOO
+    #Regreso a base funcional, pero para eso necesito la ruta de pathfinding pero para eso necesito ejecutar la simulacion pero para eso ...}
+    """Mi intención acá era que al asignar la ruta el vehiculo guarde el camino que esta recorriendo, y que para volver
+        a la base, recorra exactamente el mismo camino pero a la inversa"""
+    # ===================== RUTAS / REGRESO =====================
+
+    def _veh_key(self, v):
+        return v  # usamos el propio objeto como key
+
+    def asignar_ruta(self, vehiculo, ruta):
+        """
+        Fija una ruta de A* para el vehículo y la ACUMULA en path_ida (ida).
+        """
+        k = self._veh_key(vehiculo)
+        if not ruta:
+            self.ruta_activa.pop(k, None)
+            self.ruta_idx.pop(k, None)
+            return
+
+        # Alinear: que arranque en la posición actual
+        if ruta[0] != vehiculo.posicion:
+            ruta = [vehiculo.posicion] + ruta
+
+        self.ruta_activa[k] = ruta
+        self.ruta_idx[k] = 0
+
+        # Acumular en path_ida sin duplicar
+        pi = self.path_ida.get(k, [])
+        if not pi:
+            pi = [ruta[0]]
+        start = 1 if pi and pi[-1] == ruta[0] else 0
+        pi.extend(ruta[start:])
+        self.path_ida[k] = pi
+
+        # Si estaba volviendo, cancelo regreso (hay nueva ida)
+        self.returning.discard(k)
+
+    def tiene_ruta(self, vehiculo):
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+        return bool(ruta) and idx < len(ruta) - 1
+
+    def _step_ruta(self, vehiculo):
+        """Avanza un paso en la ruta activa (ida o regreso). True si se movió."""
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+        if not ruta or idx >= len(ruta) - 1:
+            return False
+
+        nx, ny = ruta[idx + 1]
+        vehiculo.posicion_anterior = vehiculo.posicion
+        vehiculo.posicion = (nx, ny)
+        self.ruta_idx[k] = idx + 1
+        return True
+
+    def inicio_regreso_base(self, vehiculo):
+        """
+        Arma la ruta de regreso EXACTA por los mismos pasos (path_ida invertido).
+        """
+        k = self._veh_key(vehiculo)
+        pi = self.path_ida.get(k, [])
+        if not pi:
+            return
+
+        # asegurar que la pos actual quede al final del histórico
+        if pi[-1] != vehiculo.posicion:
+            pi = pi + [vehiculo.posicion]
+            self.path_ida[k] = pi
+
+        ruta_vuelta = list(reversed(pi))
+
+        # alinear para que arranque en la pos actual
+        if ruta_vuelta[0] != vehiculo.posicion:
+            if vehiculo.posicion in ruta_vuelta:
+                i = ruta_vuelta.index(vehiculo.posicion)
+                ruta_vuelta = ruta_vuelta[i:]
+            else:
+                ruta_vuelta.insert(0, vehiculo.posicion)
+
+        self.ruta_activa[k] = ruta_vuelta
+        self.ruta_idx[k] = 0
+        self.returning.add(k)
+
+    def _step_regreso(self, vehiculo):
+        """
+        Consume un paso del regreso; si termina, entrega y resetea path_ida.
+        """
+        moved = self._step_ruta(vehiculo)
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+
+        # ¿terminó la ruta de regreso?
+        if not ruta or idx >= len(ruta) - 1:
+            self.returning.discard(k)
+            try:
+                self.registrar_entrega(vehiculo)
+            except Exception:
+                pass
+            # preparar para nueva salida (mantener base como primer nodo)
+            self.path_ida[k] = [vehiculo.posicion]
+        return moved
+=======
+             self.ejecutar_un_paso_simulacion()
+>>>>>>> origin/guada

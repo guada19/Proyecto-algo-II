@@ -1,5 +1,4 @@
-import random
-
+import random 
 class Mine():
     def __init__(self, posicion, estado, radio, estatica):
         self.x, self.y = posicion
@@ -41,12 +40,12 @@ class MineG1(Mine):
         """
         # El tick actual dentro del ciclo 1-5
         ciclo_tick = (step_count-1) % 5
-        
+            
         if ciclo_tick < 4:
             self.estado = "activa"
         else: 
             self.estado = "inactivo"
-        
+            
         if ciclo_tick == 4:
             self.estado = "inactivo"
             pos_anterior = self.posicion
@@ -54,7 +53,7 @@ class MineG1(Mine):
             while not posicion_valida:
                 
                 x = random.randint(0, tablero.largo - 1)
-                y = random.randint(1, tablero.ancho-1) 
+                y = random.randint(1, tablero.ancho - 2) 
                 pos = (x, y)
                 
                 if pos not in tablero.posiciones_ocupadas:

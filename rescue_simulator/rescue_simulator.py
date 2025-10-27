@@ -3,6 +3,15 @@ from src.map_manager import Tablero
 from src.visualization import Visualizer
 
 def main():
+    #Main rama Andre
+    """tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
+    tablero.initialization_simulation()
+
+    viz = Visualizer(tablero)
+    
+    #Prueba por consola para revisar que los vehiculos se meuven
+    #tablero.start_simulation()
+    viz.run()"""
     # Inicialización del tablero y visualizador
     tablero = Tablero(ancho=50, largo=40) 
     # Asegúrate de que initialization_simulation() y set_sim_state() existen en Tablero
@@ -15,7 +24,7 @@ def main():
     tablero._guardar_estado_en_historial()        
     tablero.set_sim_state("paused")
     
-    
+
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
@@ -42,7 +51,7 @@ def main():
                 
                 # A. Botón SPACE para Play/Pause
                 if e.key == pygame.K_SPACE:
-                    viz._do_pause_resume() # Llama directamente al método que alterna el estado
+                    viz._do_play_pause() # Llama directamente al método que alterna el estado
 
                 # B. Teclas de Replay (<< y >>)
                 elif e.key == pygame.K_LEFT:
@@ -74,8 +83,9 @@ def main():
         viz.draw_from_tablero() 
         pygame.display.flip()
         viz.clock.tick(60)
-
-    pygame.quit() 
+ 
+    pygame.quit()    
     
+
 if __name__ == "__main__":
     main()

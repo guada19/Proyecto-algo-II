@@ -5,7 +5,10 @@ class Resource():
         self.estado = estado 
         self.categoria = categoria
         self.asignado_a = None
+<<<<<<< HEAD
+=======
     
+>>>>>>> origin/guada
     
     def recolectado(self):
         self.estado = "recolectado"
