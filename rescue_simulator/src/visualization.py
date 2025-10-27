@@ -142,6 +142,8 @@ class Visualizer:
         self.img_cache["T1"] = load("minaT1.png")
         self.img_cache["T2"] = load("minaT2.png")
         self.img_cache["G1"] = load("minaG1.png")
+        #collision
+        self.img_cache["collision"] = load("collision.png") 
 
     def _create_buttons(self):
         """Crea los botones de control y administra su habilitación según estado."""
@@ -292,7 +294,7 @@ class Visualizer:
         for btn in self.buttons:
             btn.draw(self.pantalla)
 
-
+    # Dibuja la grilla y los paneles laterales (bases)
     def draw_grid(self):
         gx = self.gx
         gy = self.gy
@@ -328,8 +330,8 @@ class Visualizer:
         base1_surf = self.font_bases.render("Base J1", True, self.color_titulo)
         base2_surf = self.font_bases.render("Base J2", True, self.color_titulo)
 
-        base1_cx = base_j1[0] + base_j1[2] // 2
-        base2_cx = base_j2[0] + base_j2[2] // 2
+        base1_cx = base_j1[0] + base_j1[2] // 2 
+        base2_cx = base_j2[0] + base_j2[2] // 2 
         base_text_y = header_rect[1] + (header_rect[3] - base1_surf.get_height()) // 2      
         
         self.pantalla.blit(base1_surf, (base1_cx - base1_surf.get_width() // 2, base_text_y))
@@ -407,17 +409,32 @@ class Visualizer:
             return
 
         # Tipos de Recursos/Mercancías
-        if label in ("PER", "R", "r", "m", "a"):
-            color = {
-                "PER": (204, 153, 179), # Persona
-                "R": (164, 179, 53),    # Alimento (Recurso)
-                "m": (204, 178, 153),   # Medicamento
-                "a": (179, 204, 153),   # Armamento
-                "r": (153, 179, 204),   # Ropa
-            }.get(label, (160, 160, 160))
+        if label in ("PER", "c", "r", "m", "a"):
             
-            pygame.draw.circle(self.pantalla, color, rect.center, radio)
-            pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)  
+            sprite = self.img_cache.get(label)
+            if sprite:
+                # Escalar la imagen para que encaje en la celda
+                factor_escala = 5  
+                
+                w = int(rect.width * factor_escala)
+                h = int(rect.height * factor_escala)
+                
+                sprite_scaled = pygame.transform.scale(sprite, (w, h))
+
+                sprite_rect = sprite_scaled.get_rect(center=rect.center)
+                self.pantalla.blit(sprite_scaled, sprite_rect)
+            else:
+                # Fallback: dibujar círculo si la imagen no se pudo cargar
+                color = {
+                    "PER": (204, 153, 179), # Persona
+                    "c": (164, 179, 53),    # Comida 
+                    "m": (204, 178, 153),   # Medicamento
+                    "a": (179, 204, 153),   # Armamento
+                    "r": (153, 179, 204),   # Ropa
+                }.get(label, (160, 160, 160))
+                
+                pygame.draw.circle(self.pantalla, color, rect.center, radio)
+                pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)
             return
 
         # Tipos de Vehículos (Ej: J1, M2, C1, A2) - Dibujo y Etiqueta
@@ -425,23 +442,44 @@ class Visualizer:
             tipo_vehiculo = label[0]
             jugador = int(label[1])
             
-            color = {
-                "J": (164, 179,  53),    # Jeep
-                "M": (246, 154,  84),    # Moto
-                "C": (243,  92,  72),    # Camión
-                "A": (255, 240, 130),    # Auto
-            }.get(tipo_vehiculo, (100, 100, 100))
+            # ... (código modificado dentro de draw_item, después de definir `jugador`)
 
-            # Dibujar Círculo del Vehículo
-            pygame.draw.circle(self.pantalla, color, rect.center, radio)
-            pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1) 
+            # --- LÓGICA MODIFICADA: USAR SPRITE ---
+            sprite = self.img_cache.get(tipo_vehiculo)
             
-            # Dibujar Etiqueta (Punto 3)
+            if sprite:
+                # 1. Definir un factor de escala para hacer el vehículo más grande
+                factor_escala = 5  # <-- ¡AJUSTE ESTE VALOR!
+                
+                # Calcular nuevas dimensiones, asegurándose de que sean enteros (int)
+                w = int(rect.width * factor_escala)
+                h = int(rect.height * factor_escala)
+                
+                # Escalar la imagen usando las nuevas dimensiones
+                sprite_scaled = pygame.transform.scale(sprite, (w, h))
+
+                # Dibujar la imagen centrada (el centro de la imagen sigue siendo el centro de la celda)
+                sprite_rect = sprite_scaled.get_rect(center=rect.center)
+                self.pantalla.blit(sprite_scaled, sprite_rect)     
+
+            else:
+                # Fallback: dibujar círculo si la imagen no se pudo cargar
+                color = {
+                    "J": (164, 179,  53),    # Jeep
+                    "M": (246, 154,  84),    # Moto
+                    "C": (243,  92,  72),    # Camión
+                    "A": (255, 240, 130),    # Auto
+                }.get(tipo_vehiculo, (100, 100, 100))
+                radio  = max(5, int(rect.height * 0.45))
+                pygame.draw.circle(self.pantalla, color, rect.center, radio)
+                pygame.draw.circle(self.pantalla, (25, 25, 25), rect.center, radio, 1)
+
+            # Dibujar Etiqueta (Punto 3) - Se mantiene la etiqueta en el centro
             text_surf = self.font_label.render(label, True, (0, 0, 0))
             text_rect = text_surf.get_rect(center=rect.center)
             self.pantalla.blit(text_surf, text_rect)
             return
-
+# ...
 
     def draw_from_tablero(self):
         """Dibuja primero los radios de minas (según el frame guardado) y luego los items."""
@@ -524,17 +562,51 @@ class Visualizer:
                 rect = self.cell_to_rect(col, fila, pad=4)
                 self.draw_item(celda, rect)
 
-        # Dibujar recuadros rojos para las colisiones del frame
+        # Dibujar las colisiones del frame
         col_vis = set(frame.get("colisiones", set()))
         col_just = set(frame.get("colisiones_just_added", set()))
-        if col_vis:
+
+        # Obtener la imagen de colisión de la caché
+        collision_sprite = self.img_cache.get("collision")
+
+        if col_vis and collision_sprite: # Solo dibuja si hay colisiones y la imagen se cargó
+            # outline_color = (200, 20, 20) # Ya no necesitas esta línea para el recuadro
+
+            factor_escala_colision = 2.5 # <-- AUMENTA ESTE VALOR para un tamaño mayor (ej: 1.5, 2.0, etc.)
+
+            for pos in list(col_vis):
+                fila, col = pos
+                if not (0 <= fila < self.filas and 0 <= col < self.columnas):
+                    continue
+                
+                # Obtener el rectángulo de la celda. Ajusta el padding si es necesario
+                # para que la imagen no se dibuje demasiado pequeña o grande.
+                rect = self.cell_to_rect(col=col, fila=fila, pad=0) # pad=0 para ocupar toda la celda
+
+                # 1. Calcular el nuevo tamaño
+                new_w = int(rect.width * factor_escala_colision)
+                new_h = int(rect.height * factor_escala_colision)
+
+                # 2. Escalar la imagen con el nuevo tamaño
+                scaled_collision_sprite = pygame.transform.scale(collision_sprite, (new_w, new_h))
+
+                # 3. Centrar la imagen escalada en la celda original
+                sprite_rect = scaled_collision_sprite.get_rect(center=rect.center)
+
+                # Dibujar la imagen de colisión en la celda
+                self.pantalla.blit(scaled_collision_sprite, sprite_rect)
+
+                # Eliminamos la línea siguiente que dibujaba el recuadro rojo:
+                # pygame.draw.rect(self.pantalla, outline_color, rect, 3, border_radius=3)
+
+        """if col_vis:
             outline_color = (200, 20, 20)
             for pos in list(col_vis):
                 fila, col = pos
                 if not (0 <= fila < self.filas and 0 <= col < self.columnas):
                     continue
                 rect = self.cell_to_rect(col=col, fila=fila, pad=1)
-                pygame.draw.rect(self.pantalla, outline_color, rect, 3, border_radius=3)
+                pygame.draw.rect(self.pantalla, outline_color, rect, 3, border_radius=3)"""
 
         # Reproducir sonido de colisión solo si estamos mostrando el frame más reciente (live)
         # y solo una vez por cambio de frame para no repetir a 60 FPS.
