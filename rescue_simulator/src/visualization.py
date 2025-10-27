@@ -114,11 +114,17 @@ class Visualizer:
 
                 elif e.type == pygame.KEYDOWN:
                     if   e.key in (pygame.K_i, pygame.K_I): self._on_button("init")
-                    elif e.key == pygame.K_SPACE:           self._on_button("pause_resume")
+                    elif e.key == pygame.K_SPACE:           self._on_button("play")
                     elif e.key in (pygame.K_s, pygame.K_S): self._on_button("stop")
                     elif e.key == pygame.K_LEFT:            self._on_button("prev")
                     elif e.key == pygame.K_RIGHT:           self._on_button("next")
-                    elif e.key in (pygame.K_q, pygame.K_ESCAPE): self._on_button("quit")
+
+            estado = getattr(self.tablero, "sim_state", None)
+            if estado == "running":
+                self.tablero.next_frame()
+            elif estado == "paused":
+                # no avanzar simulación
+                pass
 
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
@@ -214,15 +220,14 @@ class Visualizer:
     def _build_buttons(self):
         etiquetas = [
             ("init", "init"),
-            ("pause/resume", "pause_resume"),
+            ("play", "play"),
             ("stop", "stop"),
             ("prev", "prev"),
             ("next", "next"),
-            ("quit", "quit"),
         ]
 
         n = len(etiquetas)
-        btn_w, btn_h, gap = 130, 38, 12
+        btn_w, btn_h, gap = 130, 50, 12
         total_w = n * btn_w + (n - 1) * gap
         start_x = self.footer_rect.centerx - total_w // 2
         y = self.footer_rect.centery - btn_h // 2
@@ -239,18 +244,22 @@ class Visualizer:
             })
 
         self._set_enabled("init", True)
-        self._set_enabled("pause_resume", False)
+        self._set_enabled("play", False)
         self._set_enabled("stop", False)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
-        self._set_enabled("quit", True)
-
     
     def _btn(self, key: str):
         for b in self.buttons:
             if b["key"] == key:
                 return b
         return None
+
+    def _set_button_text(self, key, text):
+        b = self._btn(key)
+        if b:
+            b["text"] = text
+
 
     def _set_enabled(self, key: str, val: bool):
         b = self._btn(key)
@@ -259,12 +268,12 @@ class Visualizer:
 
     def draw_buttons(self):
         # Footer visible
-        pygame.draw.rect(self.pantalla, self.color_panel, self.footer_rect, border_radius=6)
-        pygame.draw.rect(self.pantalla, self.color_borde,  self.footer_rect, 2, border_radius=6)
+        pygame.draw.rect(self.pantalla, self.color_fondo, self.footer_rect, border_radius=6)
+        pygame.draw.rect(self.pantalla, self.color_fondo,  self.footer_rect, 2, border_radius=6)
 
         mx, my = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()[0]
-
+ 
         for b in self.buttons:
             r = b["rect"]
             enabled = b.get("enabled", True)
@@ -290,8 +299,8 @@ class Visualizer:
     def _on_button(self, key: str):
         if key == "init":
             self._do_init()
-        elif key == "pause_resume":
-            self._do_pause_resume()
+        elif key == "play":
+            self._do_play_pause()
         elif key == "stop":
             self._do_stop()
         elif key == "prev":
@@ -302,22 +311,65 @@ class Visualizer:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def _do_init(self):
-        if hasattr(self.tablero, "set_sim_state"):
-            try: self.tablero.set_sim_state("init")
-            except Exception: pass
-        self._set_enabled("pause_resume", True)
+        """Inicializa el tablero y deja todo listo para iniciar la simulación."""
+        try:
+            self.tablero.set_sim_state("init")   # genera mapa, minas, recursos, vehículos
+        except Exception as e:
+            print("Error al inicializar simulación:", e)
+            return
+
+        # habilitar Play después de Init
+        self._set_enabled("play", True)
+        self._set_button_text("play", "play")
+
+        # deshabilitar lo que no debería tocarse todavía
         self._set_enabled("stop", True)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
 
-    def _do_pause_resume(self):
-        if hasattr(self.tablero, "toggle_sim_state"):
-            try: self.tablero.toggle_sim_state()
-            except Exception: pass
+        print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
+
+
+    def _do_play_pause(self):
+        """
+        Alterna entre Play y Pause.
+        - Si la simulación está pausada/inicializada, la inicia o reanuda.
+        - Si está corriendo, la pausa.
+        También actualiza el texto del botón y el estado visual de los demás.
+        """
         sim_state = getattr(self.tablero, "sim_state", None)
-        paused = (sim_state == "paused")
-        self._set_enabled("prev", paused)
-        self._set_enabled("next", paused)
+
+        # --- Si está pausada o recién iniciada, arrancar ---
+        if sim_state in ("init", "paused", "stopped"):
+            # pasamos a running
+            self.tablero.set_sim_state("running")
+
+            # si aún no hay rutas (primera vez), generarlas con estrategia J2
+            if not getattr(self.tablero, "ruta_activa", {}):
+                try:
+                    self.tablero.start_simulation()
+                except Exception as e:
+                    print(f"⚠️ No se pudo iniciar simulación: {e}")
+
+            # actualizar interfaz: ahora el botón debe decir "Pause"
+            self._set_button_text("play", "Pause")
+            self._set_enabled("init", False)
+            self._set_enabled("stop", True)
+            self._set_enabled("prev", False)
+            self._set_enabled("next", False)
+            print("▶️ Simulación corriendo...")
+
+        # --- Si está corriendo, pausar ---
+        elif sim_state == "running":
+            self.tablero.toggle_sim_state()  # cambia a "paused"
+            self._set_button_text("play", "Play")
+            self._set_enabled("init", True)
+            self._set_enabled("stop", True)
+            self._set_enabled("prev", True)
+            self._set_enabled("next", True)
+            print("⏸️ Simulación pausada.")
+
+
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -385,17 +437,21 @@ class Visualizer:
         self.pantalla.blit(base1_surf, (base1_cx - base1_surf.get_width() // 2, base_text_y))
         self.pantalla.blit(base2_surf, (base2_cx - base2_surf.get_width() // 2, base_text_y))
 
+        timer_line_y = top_y + title_surf.get_height() + 4
+
         # Puntajes (izq/dcha) — toman self.tablero.puntaje
         p1 = self.tablero.puntaje.get("J1", 0)
         p2 = self.tablero.puntaje.get("J2", 0)
         p1_surf = self.font_bases.render(f"J1: {p1}", True, self.color_titulo)
         p2_surf = self.font_bases.render(f"J2: {p2}", True, self.color_titulo)
 
-        padx = 12
-        py = header_rect[1] + (header_rect[3] - p1_surf.get_height()) // 2
-        self.pantalla.blit(p1_surf, (header_rect[0] + padx, py))
-        self.pantalla.blit(p2_surf, (header_rect[0] + header_rect[2] - padx - p2_surf.get_width(), py))
+        score_offset_y = 0  # probá con 0, 2 o 4 según te guste visualmente
 
+        self.pantalla.blit(p1_surf, (base1_cx - p1_surf.get_width() // 2,
+                                    timer_line_y + score_offset_y))
+        self.pantalla.blit(p2_surf, (base2_cx - p2_surf.get_width() // 2,
+                                    timer_line_y + score_offset_y))
+        
         # paneles bases
         pygame.draw.rect(self.pantalla, self.color_panel, base_j1, 0, border_radius=2)
         pygame.draw.rect(self.pantalla, self.color_panel, base_j2, 0, border_radius=2)
@@ -559,7 +615,6 @@ class Visualizer:
                 if celda not in (0, "0", None, ""):
                     rect = self.cell_to_rect(col, fila, pad=2)
 
-                    # --- 👇 Ajuste de escala lateral ---
                     if col == 0 or col == self.columnas - 1:
                         extra_scale = 1.1   # 10% más grande en las bases
                     else:
@@ -624,16 +679,16 @@ class ButtonBar:
             pressed = hover and click
 
             if not enabled:
-                fill = tuple(max(0, c - 40) for c in self.color_panel)
+                fill = tuple(max(0, c - 40) for c in self.color_fondo)
             elif pressed:
-                fill = tuple(max(0, c - 25) for c in self.color_panel)
+                fill = tuple(max(0, c - 25) for c in self.color_fondo)
             elif hover:
-                fill = tuple(min(255, c + 15) for c in self.color_panel)
+                fill = tuple(min(255, c + 15) for c in self.color_fondo)
             else:
-                fill = self.color_panel
+                fill = self.color_fondo
 
             pygame.draw.rect(surface, fill, r, border_radius=8)
-            pygame.draw.rect(surface, self.color_border, r, 2, border_radius=8)
+            pygame.draw.rect(surface, self.color_fondo, r, 2, border_radius=8)
 
             col_text = self.color_text if enabled else (160, 150, 140)
             txt = self.font.render(b["text"], True, col_text)

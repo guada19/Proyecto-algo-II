@@ -4,6 +4,8 @@ from src.resources import *
 from src.base import *
 from config.strategies.player2_strategies import Estrategia
 import random
+import copy
+
 
 
 class Tablero:
@@ -35,6 +37,13 @@ class Tablero:
 
         # contador de pasos de simulación 
         self.step_count = 0
+
+        #Nuevo
+        #Rutas por vehiculo
+        self.path_ida = {}     # v -> [(x,y), ...] camino acumulado de ida
+        self.ruta_activa = {}  # v -> [(x,y), ...] ruta que está siguiendo ahora (ida o regreso)
+        self.ruta_idx = {}     # v -> índice en la ruta actual
+        self.returning = set() # {v} vehículos en modo regreso a base
     
     def _crear_elementos(self):
         """Genera y retorna la lista de 65 objetos Resource y Mine."""
@@ -122,7 +131,7 @@ class Tablero:
                         y = self.ancho-1
                         Vehiculo.filas_por_jugador[2] += 1
                 
-                    nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
+                    nuevo_vehiculo = clase(posicion=(x, y), jugador=("J1" if jugador==1 else "J2"))
                     base_actual.vehiculos.append(nuevo_vehiculo)
                     self.vehiculos.append(nuevo_vehiculo) 
         self.actualizar_matriz()
@@ -283,6 +292,14 @@ class Tablero:
         vehiculo.carga_actual.clear()
         print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
 
+        self.actualizar_matriz()
+        # asegurarnos de guardar el estado en historial (así el cambio se ve)
+        try:
+            self._guardar_estado_en_historial()
+            self.indice_historial = len(self.historial_matrices) - 1
+        except Exception:
+            pass
+
 
 
 #---Funciones que se quedan ---
@@ -294,7 +311,7 @@ class Tablero:
              # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
              self.game_finished = False
              self.initialization_simulation()
-             self.sim_state = "running" # Inicia corriendo automáticamente
+             self.sim_state = "paused" # Inicia corriendo automáticamente
         elif new_state == "stopped":
             # Detener la simulación y limpiar TODOS los elementos visibles
             self.sim_state = "stopped"
@@ -332,8 +349,8 @@ class Tablero:
         # Construir frame con overlays (copias, para que el historial sea inmutable)
         frame = {
             "matriz": copy.deepcopy(self.matriz),
-            "colisiones": set(self.colisiones_visible),
-            "colisiones_just_added": set(self.colisiones_just_added),
+#            "colisiones": set(self.colisiones_visible),
+#            "colisiones_just_added": set(self.colisiones_just_added),
             "minas_overlay": [],
             "step_count": int(getattr(self, "step_count", 0))
         }
@@ -359,8 +376,8 @@ class Tablero:
         if not self.historial_matrices:
             return {
                 "matriz": copy.deepcopy(self.matriz),
-                "colisiones": set(),
-                "colisiones_just_added": set(),
+#                "colisiones": set(),
+#                "colisiones_just_added": set(),
                 "minas_overlay": []
             }
         entry = self.historial_matrices[self.indice_historial]
@@ -368,8 +385,8 @@ class Tablero:
         if isinstance(entry, list):
             return {
                 "matriz": copy.deepcopy(entry),
-                "colisiones": set(),
-                "colisiones_just_added": set(),
+#               "colisiones": set(),
+#                "colisiones_just_added": set(),
                 "minas_overlay": []
             }
         return entry
@@ -399,3 +416,147 @@ class Tablero:
              self.ejecutar_un_paso_simulacion()
 
 
+    #NUEVOOO
+    #Regreso a base funcional, pero para eso necesito la ruta de pathfinding pero para eso necesito ejecutar la simulacion pero para eso ...}
+    """Mi intención acá era que al asignar la ruta el vehiculo guarde el camino que esta recorriendo, y que para volver
+        a la base, recorra exactamente el mismo camino pero a la inversa"""
+    # ===================== RUTAS / REGRESO =====================
+
+    def _veh_key(self, v):
+        return v  # usamos el propio objeto como key
+
+    def asignar_ruta(self, vehiculo, ruta):
+        """
+        Fija una ruta de A* para el vehículo y la ACUMULA en path_ida (ida).
+        """
+        k = self._veh_key(vehiculo)
+        if not ruta:
+            self.ruta_activa.pop(k, None)
+            self.ruta_idx.pop(k, None)
+            return
+
+        # Alinear: que arranque en la posición actual
+        if ruta[0] != vehiculo.posicion:
+            ruta = [vehiculo.posicion] + ruta
+
+        self.ruta_activa[k] = ruta
+        self.ruta_idx[k] = 0
+
+        # Acumular en path_ida sin duplicar
+        pi = self.path_ida.get(k, [])
+        if not pi:
+            pi = [ruta[0]]
+        start = 1 if pi and pi[-1] == ruta[0] else 0
+        pi.extend(ruta[start:])
+        self.path_ida[k] = pi
+
+        # Si estaba volviendo, cancelo regreso (hay nueva ida)
+        self.returning.discard(k)
+
+    def tiene_ruta(self, vehiculo):
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+        return bool(ruta) and idx < len(ruta) - 1
+
+    def _step_ruta(self, vehiculo):
+        """Avanza un paso en la ruta activa (ida o regreso). True si se movió."""
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+        if not ruta or idx >= len(ruta) - 1:
+            return False
+
+        nx, ny = ruta[idx + 1]
+        vehiculo.posicion_anterior = vehiculo.posicion
+        vehiculo.posicion = (nx, ny)
+        self.ruta_idx[k] = idx + 1
+        return True
+
+    def inicio_regreso_base(self, vehiculo):
+        """
+        Arma la ruta de regreso EXACTA por los mismos pasos (path_ida invertido).
+        """
+        k = self._veh_key(vehiculo)
+        pi = self.path_ida.get(k, [])
+        if not pi:
+            return
+
+        # asegurar que la pos actual quede al final del histórico
+        if pi[-1] != vehiculo.posicion:
+            pi = pi + [vehiculo.posicion]
+            self.path_ida[k] = pi
+
+        ruta_vuelta = list(reversed(pi))
+
+        # alinear para que arranque en la pos actual
+        if ruta_vuelta[0] != vehiculo.posicion:
+            if vehiculo.posicion in ruta_vuelta:
+                i = ruta_vuelta.index(vehiculo.posicion)
+                ruta_vuelta = ruta_vuelta[i:]
+            else:
+                ruta_vuelta.insert(0, vehiculo.posicion)
+
+        self.ruta_activa[k] = ruta_vuelta
+        self.ruta_idx[k] = 0
+        self.returning.add(k)
+
+    def _step_regreso(self, vehiculo):
+        """
+        Consume un paso del regreso; si termina, entrega y resetea path_ida.
+        """
+        moved = self._step_ruta(vehiculo)
+        k = self._veh_key(vehiculo)
+        ruta = self.ruta_activa.get(k)
+        idx = self.ruta_idx.get(k, 0)
+
+        # ¿terminó la ruta de regreso?
+        if not ruta or idx >= len(ruta) - 1:
+            self.returning.discard(k)
+            try:
+                self.registrar_entrega(vehiculo)
+            except Exception:
+                pass
+            # preparar para nueva salida (mantener base como primer nodo)
+            self.path_ida[k] = [vehiculo.posicion]
+        return moved
+
+    #muy mucho importante
+    def ejecutar_un_paso_simulacion(self):
+        """
+        Avanza la simulación un tick:
+        - prioridad: regreso a base > seguir ruta activa > (nada)
+        - auto-recolecta recurso si cae sobre uno
+        - guarda frame en historial
+        """
+        print(f"🕹️ Paso de simulación {self.step_count} (estado: {self.sim_state})")
+
+        # 1) mover vehículos
+        for v in self.vehiculos:
+            k = self._veh_key(v)
+            if k in self.returning:
+                self._step_regreso(v)
+            elif self.tiene_ruta(v):
+                self._step_ruta(v)
+
+            # 2) si cayó sobre un recurso, lo toma y puede disparar regreso
+            if v.posicion in self.pos_recursos:
+                if v.agarrar_recurso(self):
+                    # si querés que vuelva al llenar capacidad, chequealo acá
+                    if len(v.carga_actual) >= v.capacidad_carga:
+                        self.inicio_regreso_base(v)
+
+            # 3) si está en base y trae carga (caso de llegada sin 'returning' marcado)
+            col = v.posicion[1]
+            if self.es_base(col) and v.carga_actual:
+                self.registrar_entrega(v)
+
+        # 4) refrescar y guardar frame
+        self.actualizar_matriz()
+        self.step_count = getattr(self, "step_count", 0) + 1
+        self._guardar_estado_en_historial()
+        self.indice_historial = len(self.historial_matrices) - 1
+
+        # 5) cortar a los 60 pasos si querés
+        if self.step_count >= 60:
+            self.set_sim_state("stopped")

@@ -13,7 +13,9 @@ class Vehiculo:
         self.jugador = jugador
         self.max_viajes = max_viajes
         self.carga_actual = []
-    
+        
+
+
     @property
     def posicion(self):
         #retornar la posición como tupla

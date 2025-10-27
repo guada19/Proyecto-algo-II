@@ -23,7 +23,7 @@ class Estrategia:
             for pos in camino[1:]:  # Excluimos la posición inicial
                 vehiculo.mover(pos)
                 self.tablero.actualizar_matriz_parcial()
-                self.tablero.mostrar_tablero()
+                #self.tablero.mostrar_tablero() ---LO COMENTO PORQUE NECESITO PROBARLO SIN ESTO
                 time.sleep(0.2)  # Retardo para simular movimiento
 
             # Marcar recurso como recogido
