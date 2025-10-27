@@ -8,6 +8,8 @@ class Base():
         self.jugador = jugador
         self.vehiculos = vehiculos
         self.estrategia = None
+
+        self.posicion = 0 if jugador == 1 else largo-1 
     
     def mostrar_puntaje(self):
         print(f"El puntaje del jugador: {self.jugador} es de: {self.puntaje}")

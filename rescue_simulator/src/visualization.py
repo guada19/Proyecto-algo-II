@@ -45,7 +45,6 @@ class Visualizer:
         self.footer_h   = 35        # alto del pie donde irán los botones
         self.footer_gap = 20        # separación entre tablero y footer
 
-
         self.timer_seconds = 0
         self.tablero = tablero
         self.ancho = ancho
@@ -260,7 +259,6 @@ class Visualizer:
         if b:
             b["text"] = text
 
-
     def _set_enabled(self, key: str, val: bool):
         b = self._btn(key)
         if b:
@@ -329,7 +327,6 @@ class Visualizer:
 
         print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
 
-
     def _do_play_pause(self):
         """
         Alterna entre Play y Pause.
@@ -362,14 +359,12 @@ class Visualizer:
         # --- Si está corriendo, pausar ---
         elif sim_state == "running":
             self.tablero.toggle_sim_state()  # cambia a "paused"
-            self._set_button_text("play", "Play")
+            self._set_button_text("play", "play")
             self._set_enabled("init", True)
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
             print("⏸️ Simulación pausada.")
-
-
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -391,7 +386,12 @@ class Visualizer:
             try: self.tablero.next_frame()
             except Exception: pass
 
-
+    def handle_button_click(self, e):
+        """Procesa el clic del mouse y llama a la acción correspondiente."""
+        for b in self.buttons:
+            if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self._on_button(b["key"])
+                break
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):
@@ -604,7 +604,6 @@ class Visualizer:
             r = pygame.Rect(rect.centerx - lado//2, rect.centery - lado//2, lado, lado)
             pygame.draw.rect(self.pantalla, color, r, border_radius=3)
             pygame.draw.rect(self.pantalla, (25,25,25), r, 1, border_radius=3)
-
 
 
     def draw_from_tablero(self):

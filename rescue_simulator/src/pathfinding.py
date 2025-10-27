@@ -3,7 +3,7 @@ from queue import PriorityQueue
 #Función para verificar si la siguiente celda a la que me quiero mover está vacía
 def es_celda_valida(tablero, x, y):
     if 0 <= x < tablero.largo and 0 <= y < tablero.ancho:
-        if not tablero.colision_minas(x,y) and not tablero.colision_vehiculos(x,y):
+        if not tablero.colision_minas(x,y) and not tablero.colision_vehiculos_para_a_star(x,y):
             return True
     return False
 
@@ -112,7 +112,8 @@ def dijkstra_recurso_mas_cercano(vehiculo, tablero):
         
         if current in tablero.pos_recursos:
             recurso = tablero.pos_recursos[current]
-            if recurso.estado == "disponible" and recurso.categoria in vehiculo.tipo_carga_permitida:
+            if recurso.estado == "disponible" and recurso.categoria in vehiculo.tipo_carga_permitida and recurso.asignado_a == None:
+                recurso.asignado_a = vehiculo
                 return current
         
         for siguiente in get_vecinos(tablero, current):
