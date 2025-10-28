@@ -7,24 +7,29 @@ class Estrategia_J2:
         self.tablero = tablero
     
     def obtener_siguiente_paso(self, vehiculo):
+
+        if not hasattr(vehiculo, "camino_restante"):   #Agregado para que funcione el regreso (creo)
+            vehiculo.camino_restante = []        
         
         if not hasattr(vehiculo, 'objetivo_recurso'):
             vehiculo.objetivo_recurso = None
 
         if len(vehiculo.carga_actual) == vehiculo.capacidad_carga or vehiculo.viajes_restantes <= 0:
-            objetivo = self.base.posicion
+            #También tocado por la misma razón
+            col_base = 0 if vehiculo.jugador in (1, "J1") else self.tablero.ancho - 1
+            objetivo = (vehiculo.posicion[0], col_base)
             
-            if not isinstance(objetivo, tuple):
-                 return None 
+            #if not isinstance(objetivo, tuple):
+            #     return None 
 
             if vehiculo.posicion == objetivo:
                 vehiculo.camino_restante = [] 
                 return None
             
             if not vehiculo.camino_restante or vehiculo.camino_restante[-1] != objetivo:
-                self._desasignar_recurso(vehiculo)
+                self.desasignar_recurso(vehiculo)
                 camino = a_star(vehiculo, self.tablero, objetivo)
-                vehiculo.camino_restante = camino[1:]
+                vehiculo.camino_restante = camino[1:] if camino else []    #Toqueteado
                 
         else:
             
@@ -68,21 +73,6 @@ class Estrategia_J2:
         vehiculo.camino_restante = []
         vehiculo.objetivo_recurso = None
 
-    def recurso_objetivo_valido(self, vehiculo):
-        
-        if not hasattr(vehiculo, 'objetivo_recurso') or vehiculo.objetivo_recurso is None:
-            return False
-
-        recurso_pos = vehiculo.objetivo_recurso
-        recurso = self.tablero.pos_recursos.get(recurso_pos)
-        
-        # Valida que el recurso exista, esté disponible, sea compatible y esté asignado a este vehículo.
-        return (recurso is not None and 
-                recurso.estado == "disponible" and 
-                recurso.categoria in vehiculo.tipo_carga_permitida and 
-                (recurso.asignado_a is None or recurso.asignado_a == vehiculo))
-    
-    
     def recurso_objetivo_valido(self, vehiculo):
         """
         Verifica si el recurso actual asignado al vehículo sigue siendo válido.
