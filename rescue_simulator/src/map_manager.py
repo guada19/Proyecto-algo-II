@@ -41,12 +41,6 @@ class Tablero:
         # contador de pasos de simulación 
         self.step_count = 0
 
-        #Nuevo
-        #Rutas por vehiculo
-        self.path_ida = {}     # v -> [(x,y), ...] camino acumulado de ida
-        self.ruta_activa = {}  # v -> [(x,y), ...] ruta que está siguiendo ahora (ida o regreso)
-        self.ruta_idx = {}     # v -> índice en la ruta actual
-        self.returning = set() # {v} vehículos en modo regreso a base
 
         
     
@@ -145,7 +139,7 @@ class Tablero:
 
         for vehiculo in self.vehiculos:
             if vehiculo.jugador == 1:
-                #vehiculo.estrategia = estrategia_j1
+                vehiculo.estrategia = estrategia_j2
                 continue
                 #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
             elif vehiculo.jugador == 2:
@@ -452,6 +446,7 @@ class Tablero:
         if new_state == "init":
              # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
              self.game_finished = False
+             self.puntaje = {"J1": 0, "J2": 0}
              self.initialization_simulation()
              self.sim_state = "paused" # Inicia corriendo automáticamente
         elif new_state == "stopped":
@@ -464,7 +459,7 @@ class Tablero:
             self.pos_minas = {}
             self.posiciones_ocupadas = set()
             # actualizar matriz a estado vacío y guardar en historial
-            self.actualizar_matriz()
+            self.puntaje = {"J1": 0, "J2": 0}
             self.historial_matrices = [copy.deepcopy(self.matriz)]
             self.indice_historial = 0
             # activar overlay de "juego finalizado"

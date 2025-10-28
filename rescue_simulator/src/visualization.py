@@ -336,7 +336,7 @@ class Visualizer:
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
 
-        #print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
+        #print("Tablero inicializado, presioná Play para comenzar la simulación.")
 
     def _do_play_pause(self):
         """
@@ -364,7 +364,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", False)
             self._set_enabled("next", False)
-            #print("▶️ Simulación corriendo...")
+            #print("Simulación corriendo...")
 
         # --- Si está corriendo, pausar ---
         elif sim_state == "running":
@@ -374,7 +374,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
-            #print("⏸️ Simulación pausada.")
+            #print("Simulación pausada.")
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
