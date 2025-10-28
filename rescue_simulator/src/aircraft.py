@@ -57,16 +57,16 @@ class Vehiculo:
     def detectar_colision(self):
         pass
     
-    
     def destruir(self):
+        #Marca el vehículo como destruido.
         self.estado = "destruido"
         self.x, self.y = -1, -1 
         self.posicion_intencionada = (-1, -1)
         self.destruir_carga() 
-        
+    
     def destruir_carga(self):
         for carga in self.carga_actual:
-            carga.destruirse()
+            carga.destruirse()   
     
     """
     Esta funcion ya no la veo como útil porque la estrategia está en cada uno de los jugadores

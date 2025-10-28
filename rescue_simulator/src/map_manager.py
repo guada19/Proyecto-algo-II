@@ -136,32 +136,41 @@ class Tablero:
                         y = self.ancho-1
                         Vehiculo.filas_por_jugador[2] += 1
                 
-                    nuevo_vehiculo = clase(posicion=(x, y), jugador=("J1" if jugador==1 else "J2"))
+                    nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
                     base_actual.vehiculos.append(nuevo_vehiculo)
                     self.vehiculos.append(nuevo_vehiculo) 
+        
+        #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
+        estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
 
-             #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
-            estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
-
-            for vehiculo in self.vehiculos:
-                if vehiculo.jugador == "J1":
-                    #vehiculo.estrategia = estrategia_j1
-                    continue
-                elif vehiculo.jugador == "J2":
-                    vehiculo.estrategia = estrategia_j2
-
+        for vehiculo in self.vehiculos:
+            if vehiculo.jugador == 1:
+                #vehiculo.estrategia = estrategia_j1
+                continue
+                #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
+            elif vehiculo.jugador == 2:
+                vehiculo.estrategia = estrategia_j2
+        
         self.actualizar_matriz()
-
+    
     def colision_minas(self, pos_x, pos_y):
         """
         Verifica si la posición (pos_x, pos_y) está dentro del radio de efecto de CUALQUIER mina activa.
         Esta función es usada por el motor del juego y el A* para EVITAR la zona.
         """
+        if pos_y == 0 or pos_y == self.ancho - 1:
+            return False
+        
         for mine in self.minas:
             if mine.estado != "activa":
                 continue
+
             mx, my = mine.posicion
             radio = mine.radio 
+            
+            if my - radio <= 0 or my + radio >= self.ancho - 1:
+            # recortamos su radio para que no afecte más allá de los límites válidos
+                radio = min(radio, my, self.ancho - 1 - my)
 
             if mine.tipo in ["01", "02", "G1"]: 
                 distance = math.sqrt((pos_x - mx)**2 + (pos_y - my)**2)
@@ -175,7 +184,9 @@ class Tablero:
             elif mine.tipo == "T2": 
                 if pos_y == my and abs(pos_x - mx) <= radio:
                      return True
-                
+
+        return False
+
     def colision_vehiculos(self, vehicles_to_destroy):
         """
         Detecta colisiones por superposición de 'posicion_intencionada' 
@@ -202,6 +213,7 @@ class Tablero:
                     vehicles_to_destroy.add(vehiculo)
 
         return vehicles_to_destroy
+
     
     def detectar_y_ejecutar_fallas(self):
         """
@@ -220,9 +232,8 @@ class Tablero:
 
         for vehiculo in vehicles_to_destroy:
             vehiculo.destruir() 
-    
-    
-        
+     
+
     def initialization_simulation(self):
         self.step_count = 0
         self.inicializar_elementos_aleatoriamente()
@@ -236,8 +247,7 @@ class Tablero:
         for m in self.minas:
             if m.tipo == "G1":
                 m.actualizar_estado(self.step_count, self)
-    
-    
+                
     def ejecutar_un_paso_simulacion(self):
         """
         Ejecuta todas las acciones que ocurren en una única instancia de tiempo (tick).
@@ -247,24 +257,23 @@ class Tablero:
         if self.sim_state != "running":
             return
             
-
         self.step_count += 1
-        
  
         self.update_mobile_elements() 
         
         for vehiculo in self.vehiculos:
             if vehiculo.estado == "activo" and vehiculo.estrategia:
+                
                 proximo_paso = vehiculo.estrategia.obtener_siguiente_paso(vehiculo) 
                 
                 if proximo_paso:
                     vehiculo.posicion_intencionada = proximo_paso
                 else:
                     vehiculo.posicion_intencionada = vehiculo.posicion 
+            
             elif vehiculo.estado != "activo":
                 
                 vehiculo.posicion_intencionada = (-1, -1)
-
         self.detectar_y_ejecutar_fallas() 
         
         for vehiculo in self.vehiculos:
@@ -277,7 +286,7 @@ class Tablero:
         
         self.actualizar_matriz() 
         self._guardar_estado_en_historial()
-
+        
         if self.step_count >= 60:
             self.set_sim_state("stopped")
     
@@ -293,6 +302,7 @@ class Tablero:
         
         #NUEVO
         # Actualizar matriz
+        #self.actualizar_matriz()
         #self.actualizar_matriz()
         """
         # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
@@ -311,6 +321,18 @@ class Tablero:
             # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
             self.set_sim_state("stopped")
             return"""
+            
+    
+    def colision_vehiculos_para_a_star(self, x, y):
+        
+        for v in self.vehiculos:
+            if v.estado == "activo" and v.posicion == (x, y):
+                return True
+        return False
+    
+    def start_simulation(self):
+        #Acá es donde cada jugador debería ejecutar su propia estrategia
+        pass
 
     def actualizar_matriz(self):
         # 1. Limpiar matriz
@@ -329,6 +351,7 @@ class Tablero:
                 x, y = pos
                 if 0 <= x < self.largo and 0 <= y < self.ancho:
                     self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
+                    self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
         for v in self.vehiculos:
@@ -340,7 +363,6 @@ class Tablero:
         for v in self.vehiculos:
             x_ant, y_ant = v.posicion_anterior
             if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
-                # El recurso todavía está ahí, no borramos nada
                 pass
             else:
                 self.matriz[x_ant][y_ant] = "0"
@@ -352,9 +374,6 @@ class Tablero:
     def mostrar_tablero(self):
         for fila in self.matriz:
             print(" ".join(f"[{celda}]" for celda in fila))
-        
-        print("")
-        print("")
 
 
     #función para saber si la columna del tablero es base
@@ -412,6 +431,7 @@ class Tablero:
 
         vehiculo.carga_actual.clear()
         print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
+
 
         self.actualizar_matriz()
         # asegurarnos de guardar el estado en historial (así el cambio se ve)

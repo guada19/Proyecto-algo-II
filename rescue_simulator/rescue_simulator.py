@@ -3,27 +3,35 @@ from src.map_manager import Tablero
 from src.visualization import Visualizer
 
 def main():
+    """
     #Main rama Andre
-    """tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
+    tablero = Tablero(ancho=40, largo=30)  # usa tus valores reales
     tablero.initialization_simulation()
 
     viz = Visualizer(tablero)
     
     #Prueba por consola para revisar que los vehiculos se meuven
     #tablero.start_simulation()
-    viz.run()"""
+    viz.run()
+    """
     # Inicialización del tablero y visualizador
-    tablero = Tablero(ancho=50, largo=40) 
+    tablero = Tablero(ancho=30, largo=30) 
     # Asegúrate de que initialization_simulation() y set_sim_state() existen en Tablero
     #tablero.initialization_simulation() 
     #tablero.set_sim_state("paused") 
     
     viz = Visualizer(tablero)
+    tablero.initialization_simulation() 
+    tablero.actualizar_matriz()                   
+    tablero._guardar_estado_en_historial()        
+    tablero.set_sim_state("paused")
+    
 
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
-
+    
+    
     # 3) loop de visualización
     running = True
     while running:
@@ -78,7 +86,6 @@ def main():
         viz.draw_from_tablero() 
         pygame.display.flip()
         viz.clock.tick(60)
- 
     pygame.quit()    
     
 

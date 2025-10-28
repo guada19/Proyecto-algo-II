@@ -6,6 +6,7 @@ class Resource():
         self.categoria = categoria
         self.asignado_a = None
     
+    
     def recolectado(self):
         self.estado = "recolectado"
      
