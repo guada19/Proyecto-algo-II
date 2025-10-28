@@ -13,20 +13,12 @@ class Vehiculo:
         self.jugador = jugador
         self.max_viajes = max_viajes
         self.carga_actual = []
-<<<<<<< HEAD
-        
-        self.estrategia = None                  
-        self.camino_restante = []               
-        self.posicion_intencionada = self.posicion        
-
-
-=======
         self.estrategia = None                  
         self.camino_restante = []               
         self.posicion_intencionada = self.posicion
+        self.objetivo_recurso = None
     
     
->>>>>>> origin/guada
     @property
     def posicion(self):
         #retornar la posición como tupla
@@ -52,6 +44,8 @@ class Vehiculo:
                 self.viajes_restantes -= 1
                 del tablero.pos_recursos[self.posicion]
                 print(f"{self.tipo} del jugador {self.jugador} recogió el recurso en {self.posicion}")
+                self.objetivo_recurso = None
+                self.camino_restante = []
                 return True
         
         return False
@@ -63,17 +57,6 @@ class Vehiculo:
     def detectar_colision(self):
         pass
     
-<<<<<<< HEAD
-    def destruir(self):
-        #Marca el vehículo como destruido.
-        self.x, self.y = -1, -1 
-        self.posicion_intencionada = (-1, -1)
-        self.destruir_carga() 
-    
-    def destruir_carga(self):
-        for carga in self.carga_actual:
-            carga.destruirse()   
-=======
     
     def destruir(self):
         self.estado = "destruido"
@@ -84,7 +67,6 @@ class Vehiculo:
     def destruir_carga(self):
         for carga in self.carga_actual:
             carga.destruirse()
->>>>>>> origin/guada
     
     """
     Esta funcion ya no la veo como útil porque la estrategia está en cada uno de los jugadores

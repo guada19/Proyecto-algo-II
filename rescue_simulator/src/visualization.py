@@ -80,19 +80,19 @@ class Visualizer:
         def load(name):
             ruta = os.path.join(os.path.dirname(__file__), "..", "data", "imagenes", name)
             if not os.path.exists(ruta):
-                print(f"⚠️ Archivo no encontrado: {ruta}")
+                print(f"Archivo no encontrado: {ruta}")
                 return None
             try:
                 # ahora sí: convert_alpha, ya hay display
                 return pygame.image.load(ruta).convert_alpha()
             except Exception as e:
-                print(f"⚠️ No se pudo cargar {name}: {e} ({ruta})")
+                print(f"No se pudo cargar {name}: {e} ({ruta})")
                 return None
 
         #Vehiculos
         self.img_cache["J"] = load("jeep2.png")
         self.img_cache["M"] = load("moto2.png")
-        self.img_cache["C"] = load("camion2.png") #Momentaneo, pequeña discusion con gpt
+        self.img_cache["C"] = load("camion2.png") 
         self.img_cache["A"] = load("auto2.png")
         #Recursos
         self.img_cache["r"] = load("ropa.png")
@@ -335,7 +335,7 @@ class Visualizer:
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
 
-        print("✅ Tablero inicializado, presioná Play para comenzar la simulación.")
+        #print("Tablero inicializado, presioná Play para comenzar la simulación.")
 
     def _do_play_pause(self):
         """
@@ -356,7 +356,7 @@ class Visualizer:
                 try:
                     self.tablero.start_simulation()
                 except Exception as e:
-                    print(f"⚠️ No se pudo iniciar simulación: {e}")
+                    print(f"No se pudo iniciar simulación: {e}")
 
             # actualizar interfaz: ahora el botón debe decir "Pause"
             self._set_button_text("play", "Pause")
@@ -364,7 +364,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", False)
             self._set_enabled("next", False)
-            print("▶️ Simulación corriendo...")
+            #print("Simulación corriendo...")
 
         # --- Si está corriendo, pausar ---
         elif sim_state == "running":
@@ -374,7 +374,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
-            print("⏸️ Simulación pausada.")
+            #print("Simulación pausada.")
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -396,17 +396,12 @@ class Visualizer:
             try: self.tablero.next_frame()
             except Exception: pass
 
-<<<<<<< HEAD
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
                 self._on_button(b["key"])
                 break
-=======
-    
-
->>>>>>> origin/guada
 
     #Dibuja las cuadriculas del tablero. Dibuja las bases también
     def draw_grid(self):

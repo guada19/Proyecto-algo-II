@@ -58,13 +58,6 @@ class Estrategia_J2:
             if vehiculo.viajes_restantes <= 0:
             #    vehiculo.volver_a_la_base
                 continue
-<<<<<<< HEAD
-                continue
 
 
 """
-=======
-
-
-"""
->>>>>>> origin/guada

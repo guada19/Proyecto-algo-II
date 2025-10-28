@@ -114,6 +114,7 @@ def dijkstra_recurso_mas_cercano(vehiculo, tablero):
             recurso = tablero.pos_recursos[current]
             if recurso.estado == "disponible" and recurso.categoria in vehiculo.tipo_carga_permitida and recurso.asignado_a == None:
                 recurso.asignado_a = vehiculo
+                vehiculo.recurso_objetivo = current
                 return current
         
         for siguiente in get_vecinos(tablero, current):
