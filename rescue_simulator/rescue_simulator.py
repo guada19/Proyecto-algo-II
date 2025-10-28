@@ -15,13 +15,13 @@ def main():
     viz.run()
     """
     # Inicialización del tablero y visualizador
-    tablero = Tablero(ancho=30, largo=30) 
+    tablero = Tablero(ancho=40, largo=35) 
     # Asegúrate de que initialization_simulation() y set_sim_state() existen en Tablero
     #tablero.initialization_simulation() 
     #tablero.set_sim_state("paused") 
     
     viz = Visualizer(tablero)
-    tablero.initialization_simulation() 
+    #tablero.initialization_simulation()  #Lo comento para que el boton init inicialice todo, o de última lo cambiamos para que se inicialicen solo los vehiculos
     tablero.actualizar_matriz()                   
     tablero._guardar_estado_en_historial()        
     tablero.set_sim_state("paused")

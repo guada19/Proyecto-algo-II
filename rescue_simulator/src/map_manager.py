@@ -41,13 +41,7 @@ class Tablero:
         # contador de pasos de simulación 
         self.step_count = 0
 
-    """#Nuevo
-        #Rutas por vehiculo
-        self.path_ida = {}     # v -> [(x,y), ...] camino acumulado de ida
-        self.ruta_activa = {}  # v -> [(x,y), ...] ruta que está siguiendo ahora (ida o regreso)
-        self.ruta_idx = {}     # v -> índice en la ruta actual
-        self.returning = set() # {v} vehículos en modo regreso a base
-    """
+
         
     
     def _crear_elementos(self):
@@ -145,7 +139,7 @@ class Tablero:
 
         for vehiculo in self.vehiculos:
             if vehiculo.jugador == 1:
-                #vehiculo.estrategia = estrategia_j1
+                vehiculo.estrategia = estrategia_j2
                 continue
                 #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
             elif vehiculo.jugador == 2:
@@ -364,9 +358,9 @@ class Tablero:
     #función para saber si la columna del tablero es base
     def es_base(self, col):
         if col == 0:
-            return "J1"
+            return "1"
         if col == self.ancho - 1:
-            return "J2"
+            return "2"
         return None
     
 
@@ -400,8 +394,10 @@ class Tablero:
         if base is None:
             return
         
-        # Verificar base y jugador correcto
-        if vehiculo.jugador != base:
+        base_label = "J1" if base == "1" else "J2"
+        veh_label  = "J1" if vehiculo.jugador == 1 else "J2"
+
+        if veh_label != base_label:
             return
 
         if not vehiculo.carga_actual:
@@ -411,15 +407,14 @@ class Tablero:
         for item in vehiculo.carga_actual:
             total += self.puntos_por(item)
 
-        self.puntaje[base] += total
-        self.entregas[base] += len(vehiculo.carga_actual)
+        self.puntaje[base_label] += total
+        self.entregas[base_label] += len(vehiculo.carga_actual)
 
         vehiculo.carga_actual.clear()
-        print(f"{base} entregó carga (+{total} pts). Total: {self.puntaje[base]}")
+        print(f"{base_label} entregó carga (+{total} pts). Total: {self.puntaje[base_label]}")
 
 
         self.actualizar_matriz()
-        # asegurarnos de guardar el estado en historial (así el cambio se ve)
         try:
             self._guardar_estado_en_historial()
             self.indice_historial = len(self.historial_matrices) - 1
@@ -436,6 +431,7 @@ class Tablero:
         if new_state == "init":
              # Inicializa la simulación (poblar elementos) y quitar overlay de "juego finalizado"
              self.game_finished = False
+             self.puntaje = {"J1": 0, "J2": 0}
              self.initialization_simulation()
              self.sim_state = "paused" # Inicia corriendo automáticamente
         elif new_state == "stopped":
@@ -448,7 +444,7 @@ class Tablero:
             self.pos_minas = {}
             self.posiciones_ocupadas = set()
             # actualizar matriz a estado vacío y guardar en historial
-            self.actualizar_matriz()
+            self.puntaje = {"J1": 0, "J2": 0}
             self.historial_matrices = [copy.deepcopy(self.matriz)]
             self.indice_historial = 0
             # activar overlay de "juego finalizado"
@@ -544,128 +540,3 @@ class Tablero:
              self.ejecutar_un_paso_simulacion()
 
 
-    #NUEVOOO
-    #Regreso a base funcional, pero para eso necesito la ruta de pathfinding pero para eso necesito ejecutar la simulacion pero para eso ...}
-    """Mi intención acá era que al asignar la ruta el vehiculo guarde el camino que esta recorriendo, y que para volver
-        a la base, recorra exactamente el mismo camino pero a la inversa"""
-    # ===================== RUTAS / REGRESO =====================
-
-    def _veh_key(self, v):
-        return v  # usamos el propio objeto como key
-
-    def asignar_ruta(self, vehiculo, ruta):
-        """
-        Fija una ruta de A* para el vehículo y la ACUMULA en path_ida (ida).
-        """
-        k = self._veh_key(vehiculo)
-        if not ruta:
-            self.ruta_activa.pop(k, None)
-            self.ruta_idx.pop(k, None)
-            return
-
-        # Alinear: que arranque en la posición actual
-        if ruta[0] != vehiculo.posicion:
-            ruta = [vehiculo.posicion] + ruta
-
-        self.ruta_activa[k] = ruta
-        self.ruta_idx[k] = 0
-
-        # Acumular en path_ida sin duplicar
-        pi = self.path_ida.get(k, [])
-        if not pi:
-            pi = [ruta[0]]
-        start = 1 if pi and pi[-1] == ruta[0] else 0
-        pi.extend(ruta[start:])
-        self.path_ida[k] = pi
-
-        # Si estaba volviendo, cancelo regreso (hay nueva ida)
-        self.returning.discard(k)
-
-    def tiene_ruta(self, vehiculo):
-        k = self._veh_key(vehiculo)
-        ruta = self.ruta_activa.get(k)
-        idx = self.ruta_idx.get(k, 0)
-        return bool(ruta) and idx < len(ruta) - 1
-
-    def _step_ruta(self, vehiculo):
-        """Avanza un paso en la ruta activa (ida o regreso). True si se movió."""
-        k = self._veh_key(vehiculo)
-        ruta = self.ruta_activa.get(k)
-        idx = self.ruta_idx.get(k, 0)
-        if not ruta or idx >= len(ruta) - 1:
-            return False
-
-        nx, ny = ruta[idx + 1]
-        vehiculo.posicion_anterior = vehiculo.posicion
-        vehiculo.posicion = (nx, ny)
-        self.ruta_idx[k] = idx + 1
-        return True
-
-    def inicio_regreso_base(self, vehiculo):
-        """
-        Arma la ruta de regreso EXACTA por los mismos pasos (path_ida invertido).
-        """
-        k = self._veh_key(vehiculo)
-        pi = self.path_ida.get(k, [])
-        if not pi:
-            return
-
-        # asegurar que la pos actual quede al final del histórico
-        if pi[-1] != vehiculo.posicion:
-            pi = pi + [vehiculo.posicion]
-            self.path_ida[k] = pi
-
-        ruta_vuelta = list(reversed(pi))
-
-        # alinear para que arranque en la pos actual
-        if ruta_vuelta[0] != vehiculo.posicion:
-            if vehiculo.posicion in ruta_vuelta:
-                i = ruta_vuelta.index(vehiculo.posicion)
-                ruta_vuelta = ruta_vuelta[i:]
-            else:
-                ruta_vuelta.insert(0, vehiculo.posicion)
-
-        self.ruta_activa[k] = ruta_vuelta
-        self.ruta_idx[k] = 0
-        self.returning.add(k)
-
-    def _step_regreso(self, vehiculo):
-        """
-        Consume un paso del regreso; si termina, entrega y resetea path_ida.
-        """
-        moved = self._step_ruta(vehiculo)
-        k = self._veh_key(vehiculo)
-        ruta = self.ruta_activa.get(k)
-        idx = self.ruta_idx.get(k, 0)
-
-        # ¿terminó la ruta de regreso?
-        if not ruta or idx >= len(ruta) - 1:
-            self.returning.discard(k)
-            try:
-                self.registrar_entrega(vehiculo)
-            except Exception:
-                pass
-            # preparar para nueva salida (mantener base como primer nodo)
-            self.path_ida[k] = [vehiculo.posicion]
-        return moved
-
-
-"""
-funciones coladas para consola:
-    def actualizar_matriz_parcial(self):
-        for v in self.vehiculos:
-            x_ant, y_ant = v.posicion_anterior
-            if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
-                pass
-            else:
-                self.matriz[x_ant][y_ant] = "0"
-        
-        for v in self.vehiculos:
-            x, y = v.posicion
-            self.matriz[x][y] = v.tipo[0]
-
-    def mostrar_tablero(self):
-        for fila in self.matriz:
-            print(" ".join(f"[{celda}]" for celda in fila))
-
-"""
