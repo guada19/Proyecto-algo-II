@@ -5,13 +5,13 @@ class Mine():
         self.estado = estado
         self.radio = radio
         self.estatica = estatica
-    
+        
     @property
     def posicion(self):
         return (self.x, self.y)
     
     def explotar(self):
-        pass
+        self.estado = "destruida"
 
 class MinesCircularesEstaticas(Mine):
     def __init__(self, tipo):
@@ -40,13 +40,16 @@ class MineG1(Mine):
         """
         # El tick actual dentro del ciclo 1-5
         ciclo_tick = (step_count-1) % 5
+        
+        if self.estado == "destruida":
+            return 
             
-        if ciclo_tick < 4:
+        if ciclo_tick < 4 and self.estado != "destruida":
             self.estado = "activa"
         else: 
             self.estado = "inactivo"
             
-        if ciclo_tick == 4:
+        if ciclo_tick == 4 and self.estado != "destruida":
             self.estado = "inactivo"
             pos_anterior = self.posicion
             posicion_valida = False

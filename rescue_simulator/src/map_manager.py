@@ -168,24 +168,24 @@ class Tablero:
             mx, my = mine.posicion
             radio = mine.radio 
             
-            if my - radio <= 0 or my + radio >= self.ancho - 1:
+            if my - radio <= 1 or my + radio >= self.ancho - 2:
             # recortamos su radio para que no afecte más allá de los límites válidos
-                radio = min(radio, my, self.ancho - 1 - my)
+                radio = min(radio, my, self.ancho - 2 - my)
 
             if mine.tipo in ["01", "02", "G1"]: 
                 distance = math.sqrt((pos_x - mx)**2 + (pos_y - my)**2)
                 if distance <= radio:
-                    return True
+                    return mine
                 
             elif mine.tipo == "T1": 
                 if pos_x == mx and abs(pos_y - my) <= radio:
-                     return True
+                    return mine
 
             elif mine.tipo == "T2": 
                 if pos_y == my and abs(pos_x - mx) <= radio:
-                     return True
+                    return mine
 
-        return False
+        return None
 
     def colision_vehiculos(self, vehicles_to_destroy):
         """
@@ -225,9 +225,11 @@ class Tablero:
             if vehiculo.estado == "activo":
                 x_int, y_int = vehiculo.posicion_intencionada
                 
-                if self.colision_minas(x_int, y_int):
+                mina_colisionada = self.colision_minas(x_int, y_int)
+                if mina_colisionada:
                     vehicles_to_destroy.add(vehiculo)
-        
+                    mina_colisionada.explotar()
+                    
         vehicles_to_destroy = self.colision_vehiculos(vehicles_to_destroy) 
 
         for vehiculo in vehicles_to_destroy:
@@ -358,23 +360,6 @@ class Tablero:
             x, y = v.posicion
             if 0 <= x < self.largo and 0 <= y < self.ancho:
                  self.matriz[x][y] = v.tipo[0]
-    
-    def actualizar_matriz_parcial(self):
-        for v in self.vehiculos:
-            x_ant, y_ant = v.posicion_anterior
-            if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
-                pass
-            else:
-                self.matriz[x_ant][y_ant] = "0"
-        
-        for v in self.vehiculos:
-            x, y = v.posicion
-            self.matriz[x][y] = v.tipo[0]
-
-    def mostrar_tablero(self):
-        for fila in self.matriz:
-            print(" ".join(f"[{celda}]" for celda in fila))
-
 
     #función para saber si la columna del tablero es base
     def es_base(self, col):
@@ -663,3 +648,24 @@ class Tablero:
             # preparar para nueva salida (mantener base como primer nodo)
             self.path_ida[k] = [vehiculo.posicion]
         return moved
+
+
+"""
+funciones coladas para consola:
+    def actualizar_matriz_parcial(self):
+        for v in self.vehiculos:
+            x_ant, y_ant = v.posicion_anterior
+            if (x_ant, y_ant) in self.pos_recursos and self.pos_recursos[(x_ant, y_ant)].estado == "disponible":
+                pass
+            else:
+                self.matriz[x_ant][y_ant] = "0"
+        
+        for v in self.vehiculos:
+            x, y = v.posicion
+            self.matriz[x][y] = v.tipo[0]
+
+    def mostrar_tablero(self):
+        for fila in self.matriz:
+            print(" ".join(f"[{celda}]" for celda in fila))
+
+"""

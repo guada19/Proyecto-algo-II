@@ -43,7 +43,7 @@ class Vehiculo:
                 recurso.recolectado()
                 self.viajes_restantes -= 1
                 del tablero.pos_recursos[self.posicion]
-                print(f"{self.tipo} del jugador {self.jugador} recogió el recurso en {self.posicion}")
+                print(f"{self.tipo} del jugador {self.jugador} recogió {recurso.categoria} en {self.posicion}")
                 self.objetivo_recurso = None
                 self.camino_restante = []
                 return True
