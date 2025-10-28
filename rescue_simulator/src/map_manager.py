@@ -444,7 +444,6 @@ class Tablero:
             self.pos_minas = {}
             self.posiciones_ocupadas = set()
             # actualizar matriz a estado vacío y guardar en historial
-            self.puntaje = {"J1": 0, "J2": 0}
             self.historial_matrices = [copy.deepcopy(self.matriz)]
             self.indice_historial = 0
             # activar overlay de "juego finalizado"

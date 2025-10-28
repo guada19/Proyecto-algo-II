@@ -639,8 +639,8 @@ class Visualizer:
     def draw_mine_radius(self):
         """Dibuja el radio de acción de cada mina activa, recortado a la grilla central.
         - O1, O2, G1 → radios circulares
-        - T1 → radio vertical
-        - T2 → radio horizontal
+        - T1 → radio horizontal
+        - T2 → radio vertical
         """
         # Superficie transparente
         overlay = pygame.Surface((self.central_w, self.central_h), pygame.SRCALPHA)
@@ -669,14 +669,14 @@ class Visualizer:
                 # Minas circulares
                 pygame.draw.circle(overlay, color_radio, (cx, cy), int(radio_px))
 
-            elif mine.tipo == "T1":
+            elif mine.tipo == "T2":
                 # Minas verticales (afectan arriba y abajo)
                 top_y = max(0, cy - radio_px)
                 bottom_y = min(self.central_h, cy + radio_px)
                 rect = pygame.Rect(cx - self.celda//3, top_y, self.celda//1.5, bottom_y - top_y)
                 pygame.draw.rect(overlay, color_radio, rect)
 
-            elif mine.tipo == "T2":
+            elif mine.tipo == "T1":
                 # Minas horizontales (afectan izquierda y derecha)
                 left_x = max(0, cx - radio_px)
                 right_x = min(self.central_w, cx + radio_px)
