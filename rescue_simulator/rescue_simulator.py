@@ -83,9 +83,13 @@ def main():
         viz.pantalla.fill(viz.color_fondo)
         viz.draw_grid()
         viz.draw_buttons() # Dibuja los botones (se encarga del hover/press)
+        viz.draw_mine_radius()
         viz.draw_from_tablero() 
         pygame.display.flip()
-        viz.clock.tick(60)
+        
+        #viz.clock.tick(60)
+        
+        
     pygame.quit()    
     
 

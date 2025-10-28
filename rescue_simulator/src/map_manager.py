@@ -162,13 +162,11 @@ class Tablero:
             mx, my = mine.posicion
             radio = mine.radio 
             
-            if my - radio <= 1 or my + radio >= self.ancho - 2:
-            # recortamos su radio para que no afecte más allá de los límites válidos
-                radio = min(radio, my, self.ancho - 2 - my)
-
             if mine.tipo in ["01", "02", "G1"]: 
                 distance = math.sqrt((pos_x - mx)**2 + (pos_y - my)**2)
                 if distance <= radio:
+                    if (pos_y == 0 or pos_y == self.ancho - 1):
+                        continue
                     return mine
                 
             elif mine.tipo == "T1": 
@@ -177,6 +175,8 @@ class Tablero:
 
             elif mine.tipo == "T2": 
                 if pos_y == my and abs(pos_x - mx) <= radio:
+                    if pos_y == 0 or pos_y == self.ancho - 1:
+                        continue
                     return mine
 
         return None

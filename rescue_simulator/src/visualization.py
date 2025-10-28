@@ -138,6 +138,7 @@ class Visualizer:
 
             self.pantalla.fill((self.color_fondo))  # fondo liso por ahora
             self.draw_grid()
+            self.draw_mine_radius()
             self.draw_from_tablero()
             self.draw_buttons()
 
@@ -323,6 +324,7 @@ class Visualizer:
         """Inicializa el tablero y deja todo listo para iniciar la simulación."""
         try:
             self.tablero.set_sim_state("init")   # genera mapa, minas, recursos, vehículos
+            self.timer_seconds = 0
         except Exception as e:
             print("Error al inicializar simulación:", e)
             return
@@ -448,7 +450,7 @@ class Visualizer:
         self.pantalla.blit(base2_surf, (base2_cx - base2_surf.get_width() // 2, base_text_y))
 
         timer_line_y = top_y + title_surf.get_height() + 4
-
+        
         # Puntajes (izq/dcha) — toman self.tablero.puntaje
         p1 = self.tablero.puntaje.get("J1", 0)
         p2 = self.tablero.puntaje.get("J2", 0)
@@ -634,6 +636,58 @@ class Visualizer:
                         int(rect.height * (extra_scale - 1))
                     ))
 
+    def draw_mine_radius(self):
+        """Dibuja el radio de acción de cada mina activa, recortado a la grilla central.
+        - O1, O2, G1 → radios circulares
+        - T1 → radio vertical
+        - T2 → radio horizontal
+        """
+        # Superficie transparente
+        overlay = pygame.Surface((self.central_w, self.central_h), pygame.SRCALPHA)
+
+        for mine in getattr(self.tablero, "minas", []):
+            if mine.estado != "activa":
+                continue
+
+            mx, my = mine.posicion
+            radio_px = mine.radio * self.celda
+
+            # Coordenadas centrales dentro del área central (sin bases)
+            if my <= 0 or my >= self.tablero.ancho - 1:
+                # No dibujar minas dentro de bases
+                continue
+
+            # Conversión de coordenadas tablero → píxeles relativos al área central
+            cx = (my - 1) * self.celda + self.celda // 2
+            cy = mx * self.celda + self.celda // 2
+
+            # Colores según tipo
+            color_radio = (255, 0, 0, 50)  # rojo translúcido
+
+            # --- Tipos de mina ---
+            if mine.tipo in ("01", "02", "G1"):
+                # Minas circulares
+                pygame.draw.circle(overlay, color_radio, (cx, cy), int(radio_px))
+
+            elif mine.tipo == "T1":
+                # Minas verticales (afectan arriba y abajo)
+                top_y = max(0, cy - radio_px)
+                bottom_y = min(self.central_h, cy + radio_px)
+                rect = pygame.Rect(cx - self.celda//3, top_y, self.celda//1.5, bottom_y - top_y)
+                pygame.draw.rect(overlay, color_radio, rect)
+
+            elif mine.tipo == "T2":
+                # Minas horizontales (afectan izquierda y derecha)
+                left_x = max(0, cx - radio_px)
+                right_x = min(self.central_w, cx + radio_px)
+                rect = pygame.Rect(left_x, cy - self.celda//3, right_x - left_x, self.celda//1.5)
+                pygame.draw.rect(overlay, color_radio, rect)
+
+        # Blit recortado solo sobre el área de la grilla central
+        self.pantalla.blit(overlay, (self.central_rect.x, self.central_rect.y))
+
+    
+    
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):
         #Actualiza el número que se muestra en el HUD. None = no mostrar.
