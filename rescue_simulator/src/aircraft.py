@@ -1,3 +1,5 @@
+import random
+
 class Vehiculo:
     
     filas_por_jugador = {1: 0, 2: 0}
@@ -47,7 +49,7 @@ class Vehiculo:
                 self.objetivo_recurso = None
                 self.camino_restante = []
                 return True
-        
+            
         return False
             
     def volver_a_la_base(self, tablero):
@@ -90,42 +92,7 @@ class Moto(Vehiculo):
 class Camion(Vehiculo):
     def __init__(self, posicion, jugador):
         super().__init__(tipo = "Camion", posicion = posicion, capacidad_carga = 3, viajes_restantes = 3, tipo_carga_permitida = ["persona", "mercancia"], estado = "activo", jugador = jugador, max_viajes = 3)
-   
+    
 class Auto(Vehiculo):
     def __init__(self, posicion, jugador):
-        super().__init__(tipo = "Auto", posicion = posicion, capacidad_carga = 1, viajes_restantes = 1, tipo_carga_permitida = ["persona", "mercancia"], estado = "activo", jugador = jugador, max_viajes = 1) 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        super().__init__(tipo = "Auto", posicion = posicion, capacidad_carga = 1, viajes_restantes = 1, tipo_carga_permitida = ["persona", "mercancia"], estado = "activo", jugador = jugador, max_viajes = 1)
