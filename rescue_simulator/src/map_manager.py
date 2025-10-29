@@ -115,7 +115,7 @@ class Tablero:
     def inicializar_vehiculos(self):
         tipos = [(Jeep, 3),(Moto, 2),(Camion, 2), (Auto, 3)]
         self.vehiculos = []
-        Vehiculo.filas_por_jugador = {1: 0, 2: 0}
+        Vehiculo.filas_por_jugador = {1: 2, 2: 2}
 
         for clase, cantidad in tipos:
             for jugador in (1, 2):
@@ -124,11 +124,11 @@ class Tablero:
                     if jugador == 1:
                         x = Vehiculo.filas_por_jugador[1]
                         y = 0
-                        Vehiculo.filas_por_jugador[1] += 1
+                        Vehiculo.filas_por_jugador[1] += 3
                     else:
                         x = Vehiculo.filas_por_jugador[2]
                         y = self.ancho-1
-                        Vehiculo.filas_por_jugador[2] += 1
+                        Vehiculo.filas_por_jugador[2] += 3
                 
                     nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
                     base_actual.vehiculos.append(nuevo_vehiculo)
