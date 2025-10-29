@@ -17,30 +17,13 @@ class Tablero:
         self.vehiculos = []
         self.recursos = []
         self.minas = []
-        self.pos_recursos = {}  
+        self.pos_recursos = {} 
         self.pos_minas = {}
         self.posiciones_ocupadas = set()
-        # celdas reservadas por el alcance de minas (no se puede colocar elemento ahí)
-        self.reserved_positions = set()
         
-        # Simulación y Historial
-        # Estado: 'stopped', 'init', 'running', 'paused'
-        self.sim_state = "stopped" 
-        self.historial_matrices = [] 
-        self.indice_historial = 0
-
-        # Posiciones de colisión visibles SOLO durante el paso en que ocurren
-        # (se almacena un set de tuplas (fila, col))
-        self.colisiones_visible = set()
-        # Colisiones que acaban de ocurrir (se usan para reproducir sonido 1 vez)
-        self.colisiones_just_added = set()
-
-        # Flag para mostrar overlay de "juego finalizado" cuando se presiona STOP
-        self.game_finished = False
-
-        # Inicializamos las bases (usar atributos del objeto, no variables locales)
-        self.base_jugador1 = Base(self.ancho, self.largo, 1, [])
-        self.base_jugador2 = Base(self.ancho, self.largo, 2, [])
+        # Inicializamos las bases
+        self.base_jugador1 = Base(ancho, largo, 1, [])
+        self.base_jugador2 = Base(ancho, largo, 2, [])
         self.bases = {1: self.base_jugador1, 2: self.base_jugador2}
 
         #Puntaje por jugador (izq = J1, der = J2)
@@ -85,93 +68,54 @@ class Tablero:
 
     def inicializar_elementos_aleatoriamente(self):
         """
-        Genera los recursos y minas, les asigna una posición aleatoria (evitando las bases)
+        Genera los recursos y minas, les asigna una posición aleatoria (evitando las bases) 
         y los almacena en las listas y diccionarios del tablero.
-
-        Nueva estrategia:
-        - limpiar estructuras
-        - separar minas y recursos
-        - crear lista de posiciones candidatas (excluyendo columnas de bases)
-        - colocar minas primero (reservando su área de influencia)
-        - luego colocar recursos en posiciones libres restantes
-        - si no hay posiciones válidas se lanza RuntimeError con mensaje claro
+        Distribuye aleatoriamente recursos y minas en el mapa sin superposición.
+        Agregué un diccionario para poder acceder a las minas y recursos de manera más directa
+        y la añadi al tablero ya que antes estaba definida por afuera y no estaban inicializados los objetos jeje
         """
+        
         self.recursos = []
         self.minas = []
-        self.pos_recursos = {}
+        self.pos_recursos = {} 
         self.pos_minas = {}
-        self.posiciones_ocupadas = set()
-        self.reserved_positions = set()  # limpiar reservas previas
-
+        self.posiciones_ocupadas = set() 
+        
         elementos = self._crear_elementos()
-
-        # Separar minas y recursos para colocar minas primero
-        minas = [e for e in elementos if isinstance(e, Mine)]
-        recursos = [e for e in elementos if isinstance(e, Resource)]
-
-        # Posiciones candidatas (excluir columna 0 y columna ancho-1 usadas por bases)
+        
+        # Defini en que posiciones se pueden asignar los recursos evitando las bases de los jugadores
+        # Bases están en la columna 0 y columna ancho-1 (y=0 y y=ancho-1)
         y_min = 1
-        y_max = self.ancho - 2
-        all_positions = [(i, j) for i in range(0, self.largo) for j in range(y_min, y_max + 1)]
-
-        # Helper para elegir aleatoriamente desde una lista
-        def elegir_aleatoria(lst):
-            if not lst:
-                return None
-            return random.choice(lst)
-
-        # 1) Colocar minas primero (reservar sus zonas)
-        for mina in minas:
-            # calcular posiciones válidas para esta mina
-            valid = []
-            for pos in all_positions:
-                if pos in self.posiciones_ocupadas:
-                    continue
-                if pos in self.reserved_positions:
-                    continue
-                tipo = getattr(mina, "tipo", None)
-                radio = int(getattr(mina, "radio", 0))
-                influ = self._influence_positions(tipo, pos, radio)
-                # no debe intersectar ocupadas ni reservas existentes
-                if influ & self.posiciones_ocupadas:
-                    continue
-                if influ & self.reserved_positions:
-                    continue
-                valid.append(pos)
-            pos = elegir_aleatoria(valid)
-            if pos is None:
-                raise RuntimeError("No hay posiciones válidas para colocar todas las minas. Reduce densidad o aumenta el tablero.")
-            mina.x, mina.y = pos
-            self.minas.append(mina)
-            self.pos_minas[pos] = mina
-            # reservar influencia para futuras colocaciones
-            tipo = getattr(mina, "tipo", None)
-            radio = int(getattr(mina, "radio", 0))
-            influ = self._influence_positions(tipo, pos, radio)
-            self.reserved_positions.update(influ)
-            # reservar la celda concreta también
-            self.posiciones_ocupadas.add(pos)
-
-        # 2) Colocar recursos en posiciones que no estén ocupadas ni reservadas
-        free_positions = [p for p in all_positions if p not in self.posiciones_ocupadas and p not in self.reserved_positions]
-        if len(free_positions) < len(recursos):
-            raise RuntimeError("No hay suficientes posiciones libres para colocar todos los recursos. Reduce elementos o aumenta tablero.")
-
-        random.shuffle(free_positions)
-        for recurso, pos in zip(recursos, free_positions):
-            recurso.x, recurso.y = pos
-            self.recursos.append(recurso)
-            self.pos_recursos[pos] = recurso
-            self.posiciones_ocupadas.add(pos)
-
-        # nota: no tocamos vehículos aquí (se inicializan en inicializar_vehiculos)
+        y_max = self.ancho - 2 
+        
+        # 3. Asignar Posición Aleatoria y Almacenar
+        for elemento in elementos:
+            posicion_valida = False
+            while not posicion_valida:
+                
+                x = random.randint(0, self.largo - 1)
+                y = random.randint(y_min, y_max) 
+                pos = (x, y)
+                
+                if pos not in self.posiciones_ocupadas:
+                    
+                    elemento.x, elemento.y = pos 
+                    self.posiciones_ocupadas.add(pos)
+                    posicion_valida = True
+            
+            if isinstance(elemento, Resource):
+                self.recursos.append(elemento)
+                self.pos_recursos[pos] = elemento 
+            
+            elif isinstance(elemento, Mine):
+                self.minas.append(elemento)
+                self.pos_minas[pos] = elemento
+    
     
     def inicializar_vehiculos(self):
         tipos = [(Jeep, 3),(Moto, 2),(Camion, 2), (Auto, 3)]
         self.vehiculos = []
-        Vehiculo.filas_por_jugador = {1: 2, 2: 2}
-        # asegurarse de no mostrar colisiones previas al repoblar
-        self.colisiones_visible = set()
+        Vehiculo.filas_por_jugador = {1: 0, 2: 0}
 
         for clase, cantidad in tipos:
             for jugador in (1, 2):
@@ -180,11 +124,11 @@ class Tablero:
                     if jugador == 1:
                         x = Vehiculo.filas_por_jugador[1]
                         y = 0
-                        Vehiculo.filas_por_jugador[1] += 4
+                        Vehiculo.filas_por_jugador[1] += 1
                     else:
                         x = Vehiculo.filas_por_jugador[2]
                         y = self.ancho-1
-                        Vehiculo.filas_por_jugador[2] += 4
+                        Vehiculo.filas_por_jugador[2] += 1
                 
                     nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
                     base_actual.vehiculos.append(nuevo_vehiculo)
@@ -195,7 +139,7 @@ class Tablero:
 
         for vehiculo in self.vehiculos:
             if vehiculo.jugador == 1:
-                vehiculo.estrategia = estrategia_j2
+                #vehiculo.estrategia = estrategia_j2
                 continue
                 #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
             elif vehiculo.jugador == 2:
@@ -343,9 +287,15 @@ class Tablero:
             self.set_sim_state("stopped")
     
     def colision_vehiculos_para_a_star(self, x, y):
-        
+        """
+        Retorna True si la celda (x, y) está ocupada actualmente o va a estar ocupada en el próximo tick.
+        Evita que A* planifique caminos que causen colisiones.
+        """
         for v in self.vehiculos:
-            if v.estado == "activo" and v.posicion == (x, y):
+            if v.estado != "activo":
+                continue
+            # ocupa la celda actual o la intencionada
+            if v.posicion == (x, y) or getattr(v, "posicion_intencionada", None) == (x, y):
                 return True
         return False
     
@@ -383,6 +333,7 @@ class Tablero:
         return False
     
     def start_simulation(self):
+        #Acá es donde cada jugador debería ejecutar su propia estrategia
         pass
 
     def actualizar_matriz(self):
@@ -405,12 +356,10 @@ class Tablero:
                     self.matriz[x][y] = 'PER' if r.categoria == "persona" else r.subtipo[0] 
                     
         # 4. Poner Vehículos (Debe ir último para que sobrescriba)
-        # Asegura que solo se muestren los vehículos activos, incluyendo los que están en la base. (Punto 1 y 2)
         for v in self.vehiculos:
-            if v.estado == "activo":
-                x, y = v.posicion
-                if 0 <= x < self.largo and 0 <= y < self.ancho:
-                     self.matriz[x][y] = v.label # Usa la nueva etiqueta (Ej: J1, M2, A1) (Punto 3)
+            x, y = v.posicion
+            if 0 <= x < self.largo and 0 <= y < self.ancho:
+                 self.matriz[x][y] = v.tipo[0]
 
     #función para saber si la columna del tablero es base
     def es_base(self, col):
@@ -501,7 +450,6 @@ class Tablero:
             self.pos_minas = {}
             self.posiciones_ocupadas = set()
             # actualizar matriz a estado vacío y guardar en historial
-            self.puntaje = {"J1": 0, "J2": 0}
             self.historial_matrices = [copy.deepcopy(self.matriz)]
             self.indice_historial = 0
             # activar overlay de "juego finalizado"
@@ -595,5 +543,3 @@ class Tablero:
         elif self.sim_state == "running":
              # Si estamos al final y la simulación está corriendo, realiza el siguiente paso
              self.ejecutar_un_paso_simulacion()
-
-

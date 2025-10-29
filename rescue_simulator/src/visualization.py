@@ -1,4 +1,5 @@
 import pygame
+pygame.init()
 import os
 
 # ruta relativa al archivo actual
@@ -114,8 +115,6 @@ class Visualizer:
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
                     corriendo = False
-                for btn in self.buttons:
-                    btn.handle_event(e)
 
                 elif e.type == pygame.MOUSEBUTTONUP and e.button == 1:
                     for b in self.buttons:
@@ -413,12 +412,12 @@ class Visualizer:
         h = self.central_h
 
         # rects
-        base_j1    = (self.gx, self.gy, self.base_w, h) 
-        central_x    = self.gx + self.base_w
-        central_rect = (central_x, self.gy, self.central_w, h)
-        base_j2  = (central_x + self.central_w, self.gy, self.base_w, h) 
+        base_j1   = (gx, gy, self.base_w, h) #Base jugador 1
+        central_x    = gx + self.base_w
+        central_rect = (central_x, gy, self.central_w, h)
+        base_j2  = (central_x + self.central_w, gy, self.base_w, h) #Base jugador 2
 
-        # ---------- HEADER y Títulos ----------
+        # ---------- HEADER ----------
         header_rect = (self.margen, self.margen, self.ancho - 2*self.margen, self.header_h)
         # fondo del header 
         pygame.draw.rect(self.pantalla, self.color_fondo, header_rect, 0, border_radius=4)
@@ -442,9 +441,10 @@ class Visualizer:
         base1_surf = self.font_bases.render("Base J1", True, self.color_titulo)
         base2_surf = self.font_bases.render("Base J2", True, self.color_titulo)
 
-        base1_cx = base_j1[0] + base_j1[2] // 2 
-        base2_cx = base_j2[0] + base_j2[2] // 2 
-        base_text_y = header_rect[1] + (header_rect[3] - base1_surf.get_height()) // 2      
+        # centro en X de cada panel lateral
+        base1_cx = base_j1[0] + base_j1[2] // 2
+        base2_cx = base_j2[0] + base_j2[2] // 2
+        base_text_y = header_rect[1] + (header_rect[3] - base1_surf.get_height()) // 2    
         
         self.pantalla.blit(base1_surf, (base1_cx - base1_surf.get_width() // 2, base_text_y))
         self.pantalla.blit(base2_surf, (base2_cx - base2_surf.get_width() // 2, base_text_y))
@@ -474,25 +474,28 @@ class Visualizer:
         pygame.draw.rect(self.pantalla, self.color_grid_bg, central_rect, 0)
         
         # líneas de grilla (solo dentro del rect central)
-        cols_centro = max(self.columnas, 1)
+        cols_centro = max(self.columnas - 2, 1)
 
-        inset = 1 
+        # Rectángulo interior donde van SOLO las líneas (dejamos margen del borde)
+        inset = 1  # podés probar 2–4 px
         inner_left   = central_x + inset
-        inner_top    = self.gy + inset
+        inner_top    = gy + inset
         inner_right  = central_x + self.central_w - inset
-        inner_bottom = self.gy + h - inset
-        
-        # Verticales
+        inner_bottom = gy + h - inset
+        inner_w = inner_right - inner_left
+        inner_h = inner_bottom - inner_top
+
+        # Verticales: de 1 a (cols_centro - 1) → NO dibujar las de los bordes
         for c in range(1, cols_centro):
             x = inner_left + c * (self.celda)
             pygame.draw.line(self.pantalla, self.color_grid_line, (x, inner_top), (x, inner_bottom), 2)
 
-        # Horizontales
+        # Horizontales: de 1 a (filas - 1) → NO dibujar las de los bordes
         for r in range(1, self.filas):
             y = inner_top + r * (self.celda)
             pygame.draw.line(self.pantalla, self.color_grid_line, (inner_left, y), (inner_right, y), 2)
 
-        # borde del tablero
+        # --- borde del tablero (encima de las líneas) ---
         pygame.draw.rect(self.pantalla, self.color_borde, central_rect, 3)
 
         # ----- FOOTER (barra) -----
@@ -636,8 +639,8 @@ class Visualizer:
     def draw_mine_radius(self):
         """Dibuja el radio de acción de cada mina activa, recortado a la grilla central.
         - O1, O2, G1 → radios circulares
-        - T1 → radio vertical
-        - T2 → radio horizontal
+        - T1 → radio horizontal
+        - T2 → radio vertical
         """
         # Superficie transparente
         overlay = pygame.Surface((self.central_w, self.central_h), pygame.SRCALPHA)
@@ -666,14 +669,14 @@ class Visualizer:
                 # Minas circulares
                 pygame.draw.circle(overlay, color_radio, (cx, cy), int(radio_px))
 
-            elif mine.tipo == "T1":
+            elif mine.tipo == "T2":
                 # Minas verticales (afectan arriba y abajo)
                 top_y = max(0, cy - radio_px)
                 bottom_y = min(self.central_h, cy + radio_px)
                 rect = pygame.Rect(cx - self.celda//3, top_y, self.celda//1.5, bottom_y - top_y)
                 pygame.draw.rect(overlay, color_radio, rect)
 
-            elif mine.tipo == "T2":
+            elif mine.tipo == "T1":
                 # Minas horizontales (afectan izquierda y derecha)
                 left_x = max(0, cx - radio_px)
                 right_x = min(self.central_w, cx + radio_px)
