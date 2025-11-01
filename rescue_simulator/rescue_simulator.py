@@ -1,6 +1,8 @@
 import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
+from data.simulations.replay_manager import ReplayManager
+
 
 def main():
     """
@@ -26,6 +28,8 @@ def main():
     tablero._guardar_estado_en_historial()        
     tablero.set_sim_state("paused")
     
+    replay = ReplayManager()
+    tick = 0    
 
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
@@ -89,6 +93,9 @@ def main():
         viz.draw_from_tablero() 
         pygame.display.flip()
         viz.clock.tick(60)
+
+    replay.guardar_pickle("partida_actual.pkl")
+    replay.guardar_json_resumido("partida_actual.json")  
 
     pygame.quit()  
     

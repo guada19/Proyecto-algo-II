@@ -19,9 +19,6 @@ class Estrategia_J2:
             col_base = 0 if vehiculo.jugador in (1, "J1") else self.tablero.ancho - 1
             objetivo = (vehiculo.posicion[0], col_base)
             
-            #if not isinstance(objetivo, tuple):
-            #     return None 
-
             if vehiculo.posicion == objetivo:
                 vehiculo.camino_restante = [] 
                 return None
@@ -30,8 +27,20 @@ class Estrategia_J2:
                 self.desasignar_recurso(vehiculo)
                 camino = a_star(vehiculo, self.tablero, objetivo)
                 vehiculo.camino_restante = camino[1:] if camino else []    #Toqueteado
+            
+            if vehiculo.camino_restante:
+                next_pos = vehiculo.camino_restante[0]
+                
+                if self.tablero.colision_vehiculos_para_a_star(*next_pos) or self.tablero.colision_minas(*next_pos):
+                    vehiculo.camino_restante = []
+                    return None
                 
         else:
+            
+            if self.tablero.step_count % 5 == 0:
+                self.desasignar_recurso(vehiculo)
+                vehiculo.camino_restante = []
+                pass
             
             if not self.recurso_objetivo_valido(vehiculo):
                 self.desasignar_recurso(vehiculo)
@@ -55,17 +64,24 @@ class Estrategia_J2:
                     return None
             """
 
-        if vehiculo.camino_restante:
-            next_pos = vehiculo.camino_restante[0]
-            
-            if self.tablero.colision_vehiculos_para_a_star(*next_pos) or self.tablero.colision_minas(*next_pos):
-                #self.desasignar_recurso(vehiculo) 
-                #vehiculo.camino_restante = []
-                return None
-            
-        if not vehiculo.camino_restante:
-            camino = a_star(vehiculo, self.tablero, objetivo)
-            vehiculo.camino_restante = camino[1:] if camino else []
+            if vehiculo.camino_restante:
+                next_pos = vehiculo.camino_restante[0]
+
+                if self.tablero.colision_vehiculos_para_a_star(*next_pos) or self.tablero.colision_minas(*next_pos):
+                    #self.desasignar_recurso(vehiculo) 
+                    vehiculo.camino_restante = []
+                    return None
+
+            if not vehiculo.camino_restante:
+                camino = a_star(vehiculo, self.tablero, objetivo)
+
+                if not camino or len(camino) < 2:
+
+                    if vehiculo.objetivo_recurso is not None:
+                         self.desasignar_recurso(vehiculo) 
+                    return None
+
+                vehiculo.camino_restante = camino[1:] if camino else []
 
         return vehiculo.camino_restante.pop(0) if vehiculo.camino_restante else None
         

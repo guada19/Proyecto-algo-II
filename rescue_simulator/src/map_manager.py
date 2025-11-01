@@ -190,10 +190,10 @@ class Tablero:
 
         for vehiculo in self.vehiculos:
             if vehiculo.estado == "activo" and vehiculo not in vehicles_to_destroy:
-
+            
                 pos = vehiculo.posicion_intencionada
 
-                if pos == vehiculo.posicion and self.es_base(pos[1]):
+                if self.es_base(pos[1]) is not None:
                     continue 
 
                 if pos not in intended_positions:
@@ -270,6 +270,7 @@ class Tablero:
             elif vehiculo.estado != "activo":
                 
                 vehiculo.posicion_intencionada = (-1, -1)
+        
         self.detectar_y_ejecutar_fallas() 
         
         for vehiculo in self.vehiculos:
@@ -291,11 +292,14 @@ class Tablero:
         Retorna True si la celda (x, y) está ocupada actualmente o va a estar ocupada en el próximo tick.
         Evita que A* planifique caminos que causen colisiones.
         """
+        if y == 0 or y == self.ancho-1:
+            return False
+        
         for v in self.vehiculos:
             if v.estado != "activo":
                 continue
             # ocupa la celda actual o la intencionada
-            if v.posicion == (x, y) or getattr(v, "posicion_intencionada", None) == (x, y):
+            if v.posicion == (x, y) or v.posicion_intencionada == (x, y):
                 return True
         return False
     
@@ -322,15 +326,17 @@ class Tablero:
         if getattr(self, "step_count", 0) >= 60:
             # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
             self.set_sim_state("stopped")
-            return"""
+            return
             
-    
-    def colision_vehiculos_para_a_star(self, x, y):
+            def colision_vehiculos_para_a_star(self, x, y):
         
         for v in self.vehiculos:
             if v.estado == "activo" and v.posicion == (x, y):
                 return True
         return False
+            
+        """
+            
     
     def start_simulation(self):
         #Acá es donde cada jugador debería ejecutar su propia estrategia
@@ -418,8 +424,10 @@ class Tablero:
 
         vehiculo.carga_actual.clear()
         print(f"{base_label} entregó carga (+{total} pts). Total: {self.puntaje[base_label]}")
-
-
+        
+        #Esta linea de acá es para que siga buscando recursos hasta que se termine la simulación 
+        #vehiculo.viajes_restantes = vehiculo.max_viajes 
+        
         self.actualizar_matriz()
         try:
             self._guardar_estado_en_historial()

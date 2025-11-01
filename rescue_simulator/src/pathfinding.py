@@ -79,6 +79,10 @@ def a_star(vehiculo, tablero, pos_obj):
                 frontera.put((prioridad, siguiente)) #lo añadimos en los nodos próximos a explorar
                 viene_de[siguiente] = current #indicamos de donde viene
 
+    if pos_obj not in viene_de:
+    # objetivo no alcanzable
+        return []
+    
     # Reconstruimos el camino
     camino = []
     node = pos_obj
@@ -114,7 +118,7 @@ def dijkstra_recurso_mas_cercano(vehiculo, tablero):
             recurso = tablero.pos_recursos[current]
             if recurso.estado == "disponible" and recurso.categoria in vehiculo.tipo_carga_permitida and recurso.asignado_a == None:
                 recurso.asignado_a = vehiculo
-                vehiculo.recurso_objetivo = current
+                vehiculo.objetivo_recurso = current
                 return current
         
         for siguiente in get_vecinos(tablero, current):

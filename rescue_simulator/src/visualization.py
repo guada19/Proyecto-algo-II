@@ -144,6 +144,8 @@ class Visualizer:
 
             pygame.display.flip()
             self.clock.tick(60)
+            
+            
         pygame.quit()
 
     def _compute_layout(self, margen=28, base_px=90, target_cell_px=44):
@@ -390,14 +392,18 @@ class Visualizer:
 
     def _do_prev(self):
         if hasattr(self.tablero, "prev_frame"):
-            try: self.tablero.prev_frame()
+            try: 
+                self.tablero.prev_frame()
+                #self._update_replay_button_status()
             except Exception: pass
 
     def _do_next(self):
         if hasattr(self.tablero, "next_frame"):
-            try: self.tablero.next_frame()
+            try: 
+                self.tablero.next_frame()
+                #self._update_replay_button_status()
             except Exception: pass
-
+    
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
@@ -773,3 +779,4 @@ class ButtonBar:
         for b in self.buttons:
             if b["key"] == key:
                 b["enabled"] = bool(val)
+
