@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+# Excluir la carpeta del entorno virtual
+venv/

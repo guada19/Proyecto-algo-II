@@ -115,7 +115,7 @@ class Tablero:
     def inicializar_vehiculos(self):
         tipos = [(Jeep, 3),(Moto, 2),(Camion, 2), (Auto, 3)]
         self.vehiculos = []
-        Vehiculo.filas_por_jugador = {1: 0, 2: 0}
+        Vehiculo.filas_por_jugador = {1: 2, 2: 2}
 
         for clase, cantidad in tipos:
             for jugador in (1, 2):
@@ -124,11 +124,11 @@ class Tablero:
                     if jugador == 1:
                         x = Vehiculo.filas_por_jugador[1]
                         y = 0
-                        Vehiculo.filas_por_jugador[1] += 1
+                        Vehiculo.filas_por_jugador[1] += 3
                     else:
                         x = Vehiculo.filas_por_jugador[2]
                         y = self.ancho-1
-                        Vehiculo.filas_por_jugador[2] += 1
+                        Vehiculo.filas_por_jugador[2] += 3
                 
                     nuevo_vehiculo = clase(posicion=(x, y), jugador=jugador)
                     base_actual.vehiculos.append(nuevo_vehiculo)
@@ -139,7 +139,7 @@ class Tablero:
 
         for vehiculo in self.vehiculos:
             if vehiculo.jugador == 1:
-                vehiculo.estrategia = estrategia_j2
+                #vehiculo.estrategia = estrategia_j2
                 continue
                 #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
             elif vehiculo.jugador == 2:
@@ -287,9 +287,15 @@ class Tablero:
             self.set_sim_state("stopped")
     
     def colision_vehiculos_para_a_star(self, x, y):
-        
+        """
+        Retorna True si la celda (x, y) está ocupada actualmente o va a estar ocupada en el próximo tick.
+        Evita que A* planifique caminos que causen colisiones.
+        """
         for v in self.vehiculos:
-            if v.estado == "activo" and v.posicion == (x, y):
+            if v.estado != "activo":
+                continue
+            # ocupa la celda actual o la intencionada
+            if v.posicion == (x, y) or getattr(v, "posicion_intencionada", None) == (x, y):
                 return True
         return False
     
@@ -537,5 +543,3 @@ class Tablero:
         elif self.sim_state == "running":
              # Si estamos al final y la simulación está corriendo, realiza el siguiente paso
              self.ejecutar_un_paso_simulacion()
-
-

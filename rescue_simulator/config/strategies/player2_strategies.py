@@ -45,24 +45,30 @@ class Estrategia_J2:
                 vehiculo.objetivo_recurso = recurso_objetivo 
 
             objetivo = vehiculo.objetivo_recurso
-            
+            """
             if vehiculo.camino_restante:
                 next_pos = vehiculo.camino_restante[0]
                 
                 if self.tablero.colision_vehiculos_para_a_star(*next_pos) or self.tablero.colision_minas(*next_pos):
-                    self.desasignar_recurso(vehiculo) 
-                    vehiculo.camino_restante = []
-            
-            if not vehiculo.camino_restante:
-                
-                camino = a_star(vehiculo, self.tablero, objetivo)
-                vehiculo.camino_restante = camino[1:]
-                
+                    #self.desasignar_recurso(vehiculo) 
+                    #vehiculo.camino_restante = []
+                    return None
+            """
+
         if vehiculo.camino_restante:
-            return vehiculo.camino_restante.pop(0)
+            next_pos = vehiculo.camino_restante[0]
+            
+            if self.tablero.colision_vehiculos_para_a_star(*next_pos) or self.tablero.colision_minas(*next_pos):
+                #self.desasignar_recurso(vehiculo) 
+                #vehiculo.camino_restante = []
+                return None
+            
+        if not vehiculo.camino_restante:
+            camino = a_star(vehiculo, self.tablero, objetivo)
+            vehiculo.camino_restante = camino[1:] if camino else []
+
+        return vehiculo.camino_restante.pop(0) if vehiculo.camino_restante else None
         
-        return None
-    
     def desasignar_recurso(self, vehiculo):
         
         if hasattr(vehiculo, 'objetivo_recurso') and vehiculo.objetivo_recurso:

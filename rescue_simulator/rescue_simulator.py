@@ -37,6 +37,8 @@ def main():
     while running:
         tiempo_actual = pygame.time.get_ticks()
         
+        tiempo_actual = pygame.time.get_ticks()
+        
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 running = False
@@ -86,6 +88,10 @@ def main():
         viz.draw_mine_radius()
         viz.draw_from_tablero() 
         pygame.display.flip()
+        viz.clock.tick(60)
+
+    pygame.quit()  
+    
         
         #viz.clock.tick(60)
         
