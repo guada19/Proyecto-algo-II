@@ -709,7 +709,8 @@ class Visualizer:
         m, ss = divmod(max(0, int(s)), 60)
         return f"{m:02d}:{ss:02d}"
     
-
+    def definir_ganador(self):
+        return self.tablero.definir_ganador()
     
 
 class ButtonBar:

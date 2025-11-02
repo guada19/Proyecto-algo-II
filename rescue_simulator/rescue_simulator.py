@@ -33,8 +33,6 @@ def main():
     
     replay = ReplayManager()
     tick = 0    
-    replay.registrar_frame(tablero, tick)
-    tick += 1
 
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
@@ -57,12 +55,13 @@ def main():
             
             # 1. Manejo de clics/botones (MOUSEDOWN/MOUSEUP)
             if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
-                 # Esta línea debe llamar al método del Visualizer que procesa los clics
-                 viz.handle_button_click(e) 
+                # Esta línea debe llamar al método del Visualizer que procesa los clics
+                viz.handle_button_click(e) 
+                replay.registrar_frame(tablero, tick)
+                tick += 1
             
             # 2. Manejo de teclas
             if e.type == pygame.KEYDOWN:
-                
                 # A. Botón SPACE para Play/Pause
                 if e.key == pygame.K_SPACE:
                     viz._do_play_pause() # Llama directamente al método que alterna el estado
@@ -82,7 +81,6 @@ def main():
                     tablero.inicializar_vehiculos()
                     tablero.actualizar_matriz()
                     tablero._guardar_estado_en_historial()
-
         # --- Lógica de la Simulación (Tick Controlado) ---
         if tablero.sim_state == "running":
             # Avanza el juego si ha pasado el tiempo definido (200ms)
@@ -105,9 +103,7 @@ def main():
         running = False
         replay.guardar_pickle("partida_actual.pkl")
         replay.guardar_json_resumido("partida_actual.json")
-    #pygame.quit()  
         mostrar_menu_final(viz, replay)
-    
         
     #viz.clock.tick(60)
         

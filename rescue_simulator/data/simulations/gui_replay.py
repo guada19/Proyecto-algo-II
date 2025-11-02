@@ -14,8 +14,13 @@ def mostrar_menu_final(viz, replay):
     """
     Pantalla de fin de simulación con estilo 'cartel emergente'.
     """
+    
+    ganador = viz.definir_ganador()
+    cartel = "El ganador es:  " + ganador if ganador else "Es un empate"
+    
     fuente_titulo = pygame.font.Font(font_1, 35)
     fuente_boton = pygame.font.Font(font_2, 18)
+    fuente_subtitulo = pygame.font.Font(font_1, 20)
     reloj = pygame.time.Clock()
 
     # Definir botones
@@ -56,6 +61,10 @@ def mostrar_menu_final(viz, replay):
         titulo = fuente_titulo.render("Simulación terminada", True, (255, 255, 255))
         viz.pantalla.blit(titulo, (180, 170))
 
+        altura_titulo = titulo.get_height()
+        sub_titulo = fuente_subtitulo.render(cartel, True, (255, 255, 255))
+        viz.pantalla.blit(sub_titulo, (250, 180 + altura_titulo))
+        
         # Botones
         mouse_pos = pygame.mouse.get_pos()
         color_replay = (143, 125, 110) if boton_replay.collidepoint(mouse_pos) else (60, 180, 60)
