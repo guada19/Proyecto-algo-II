@@ -692,7 +692,12 @@ class Visualizer:
         # Blit recortado solo sobre el área de la grilla central
         self.pantalla.blit(overlay, (self.central_rect.x, self.central_rect.y))
 
-    
+    def draw_replay_frame(viz, frame_data):
+        viz.pantalla.fill(viz.color_fondo)
+        viz.draw_grid()
+        viz.draw_buttons() 
+        viz.draw_mine_radius()
+        viz.draw_from_tablero() 
     
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):
@@ -703,6 +708,9 @@ class Visualizer:
         # 60 -> "01:00", 9 -> "00:09"
         m, ss = divmod(max(0, int(s)), 60)
         return f"{m:02d}:{ss:02d}"
+    
+
+    
 
 class ButtonBar:
     def __init__(self, rect: pygame.Rect, font: pygame.font.Font,
@@ -779,4 +787,3 @@ class ButtonBar:
         for b in self.buttons:
             if b["key"] == key:
                 b["enabled"] = bool(val)
-

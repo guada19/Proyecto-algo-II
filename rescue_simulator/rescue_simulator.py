@@ -2,6 +2,7 @@ import pygame
 from src.map_manager import Tablero
 from src.visualization import Visualizer
 from data.simulations.replay_manager import ReplayManager
+from data.simulations.gui_replay import *
 
 
 def main():
@@ -27,9 +28,13 @@ def main():
     tablero.actualizar_matriz()                   
     tablero._guardar_estado_en_historial()        
     tablero.set_sim_state("paused")
+
+    
     
     replay = ReplayManager()
     tick = 0    
+    replay.registrar_frame(tablero, tick)
+    tick += 1
 
     # Temporizador de la simulación
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
@@ -84,6 +89,8 @@ def main():
             if tiempo_actual - ultimo_paso_tiempo >= TIEMPO_PASO_MS:
                 tablero.ejecutar_un_paso_simulacion() 
                 ultimo_paso_tiempo = tiempo_actual
+                replay.registrar_frame(tablero, tick)
+                tick += 1
         
         # --- Dibujar frame ---
         viz.pantalla.fill(viz.color_fondo)
@@ -92,19 +99,22 @@ def main():
         viz.draw_mine_radius()
         viz.draw_from_tablero() 
         pygame.display.flip()
-        viz.clock.tick(60)
-
-    replay.guardar_pickle("partida_actual.pkl")
-    replay.guardar_json_resumido("partida_actual.json")  
-
-    pygame.quit()  
+        viz.clock.tick(150)
+    
+    if tablero.sim_state == "stopped":
+        running = False
+        replay.guardar_pickle("partida_actual.pkl")
+        replay.guardar_json_resumido("partida_actual.json")
+    #pygame.quit()  
+        mostrar_menu_final(viz, replay)
     
         
-        #viz.clock.tick(60)
+    #viz.clock.tick(60)
         
         
     pygame.quit()    
     
+
 
 if __name__ == "__main__":
     main()
