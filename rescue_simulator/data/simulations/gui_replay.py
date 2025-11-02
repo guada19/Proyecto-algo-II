@@ -26,7 +26,7 @@ def mostrar_menu_final(viz, replay):
     # Definir botones
     boton_replay = pygame.Rect(250, 250, 250, 70)
     boton_salir = pygame.Rect(250, 340, 250, 70)
-
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -62,6 +62,7 @@ def mostrar_menu_final(viz, replay):
         viz.pantalla.blit(titulo, (180, 170))
 
         altura_titulo = titulo.get_height()
+
         sub_titulo = fuente_subtitulo.render(cartel, True, (255, 255, 255))
         viz.pantalla.blit(sub_titulo, (250, 180 + altura_titulo))
         
