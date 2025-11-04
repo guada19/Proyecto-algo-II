@@ -104,7 +104,9 @@ def main():
         replay.guardar_pickle("partida_actual.pkl")
         replay.guardar_json_resumido("partida_actual.json")
         mostrar_menu_final(viz, replay)
-        
+        #pygame.init()
+        # Creamos un nuevo visualizador para restaurar la ventana
+        #viz = Visualizer(tablero, ancho=viz_ancho, alto=viz_alto)
     #viz.clock.tick(60)
         
         
