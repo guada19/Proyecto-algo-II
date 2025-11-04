@@ -336,7 +336,14 @@ class Tablero:
         return False
             
         """
-            
+    
+    def definir_ganador(self):
+        ganador = None
+        if self.puntaje["J1"] > self.puntaje["J2"]:
+            ganador = "Jugador 1"
+        elif self.puntaje["J2"] > self.puntaje["J1"]:
+            ganador = "Jugador 2"
+        return ganador
     
     def start_simulation(self):
         #Acá es donde cada jugador debería ejecutar su propia estrategia
