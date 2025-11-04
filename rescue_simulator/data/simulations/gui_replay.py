@@ -84,7 +84,7 @@ def mostrar_menu_final(viz, replay):
         reloj.tick(30)
 
 
-def modo_replay_misma_pantalla(viz, replay):
+def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
     """
     Reproduce automáticamente el replay, pero permite usar flechas para moverse frame a frame.
     """
@@ -94,11 +94,11 @@ def modo_replay_misma_pantalla(viz, replay):
         print("No hay frames guardados en el replay.")
         return
 
-    index = 0
+    index = desde_frame
     total = len(frames)
     reloj = pygame.time.Clock()
 
-    reproduciendo = True  # True = corre solo; False = control manual
+    reproduciendo = auto_play  # True = corre solo; False = control manual
     velocidad_fps = 4    # velocidad del replay automático
 
     fuente_info = pygame.font.Font(None, 32)
@@ -106,6 +106,9 @@ def modo_replay_misma_pantalla(viz, replay):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                with open(ruta_pos, "w") as f:
+                    f.write(str(index))
                 pygame.quit()
                 return
             if event.type == pygame.KEYDOWN:
@@ -118,6 +121,9 @@ def modo_replay_misma_pantalla(viz, replay):
                 elif event.key == pygame.K_SPACE:
                     reproduciendo = not reproduciendo  # pausar/reanudar
                 elif event.key == pygame.K_ESCAPE:
+                    ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                    with open(ruta_pos, "w") as f:
+                        f.write(str(index))
                     return
 
         # Actualizar frame

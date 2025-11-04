@@ -1,0 +1,7 @@
+replays/
+__pycache__/
+*.pyc
+*.log
+*.pkl
+*.json
+.vscode/
