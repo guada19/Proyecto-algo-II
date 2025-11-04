@@ -134,12 +134,12 @@ class Tablero:
                     base_actual.vehiculos.append(nuevo_vehiculo)
                     self.vehiculos.append(nuevo_vehiculo) 
         
-        #estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
+        estrategia_j1 = Estrategia_J1(self.bases[1].jugador, self.bases[1], self) 
         estrategia_j2 = Estrategia_J2(self.bases[2].jugador, self.bases[2], self) 
 
         for vehiculo in self.vehiculos:
             if vehiculo.jugador == 1:
-                #vehiculo.estrategia = estrategia_j2
+                vehiculo.estrategia = estrategia_j1
                 continue
                 #print(f"Esta es la estrategia de los vehiculos: {vehiculo.estrategia}")
             elif vehiculo.jugador == 2:

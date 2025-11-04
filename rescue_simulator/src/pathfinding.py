@@ -1,4 +1,5 @@
 from queue import PriorityQueue
+from collections import deque
 
 #Función para verificar si la siguiente celda a la que me quiero mover está vacía
 def es_celda_valida(tablero, x, y):
@@ -129,4 +130,128 @@ def dijkstra_recurso_mas_cercano(vehiculo, tablero):
                 frontera.put((nuevo_costo, siguiente))
     
     # Si no se encuentra ningún recurso disponible
+    return None
+
+
+#NUEVOOO para jugador 1 BFS
+# --- BFS simple (coste uniforme) ---
+
+
+def bfs_path(tablero, start, goal, *, ignore_mines=False):
+    """
+    Devuelve una lista de posiciones [start,...,goal] usando BFS (pasos mínimos).
+    Si ignore_mines=True, no trata a las minas como bloqueo (las 'atraviesa').
+    """
+    if start == goal:
+        return [start]
+
+    ancho, largo = tablero.ancho, tablero.largo
+    en_cola = deque([start])
+    prev = {start: None}
+    dirs = [(1,0), (-1,0), (0,1), (0,-1)]
+
+    def walkable(x, y):
+        # Fuera de mapa
+        if not (0 <= x < ancho and 0 <= y < largo):
+            return False
+
+        # Paredes / celdas sólidas
+        # Usá el criterio que ya tenga tu tablero:
+        if hasattr(tablero, "es_bloqueante"):
+            if tablero.es_bloqueante(x, y):
+                return False
+        elif hasattr(tablero, "es_transitable"):
+            if not tablero.es_transitable(x, y):
+                return False
+        elif hasattr(tablero, "colision_pared"):
+            if tablero.colision_pared(x, y):
+                return False
+        # Si no tenés ninguna de las anteriores, asumimos que no hay paredes más que bordes.
+
+        # Minas (solo si NO queremos ignorarlas)
+        if not ignore_mines and hasattr(tablero, "colision_minas"):
+            if tablero.colision_minas(x, y):
+                return False
+
+        return True
+
+    while en_cola:
+        ux, uy = en_cola.popleft()
+        for dx, dy in dirs:
+            vx, vy = ux + dx, uy + dy
+            v = (vx, vy)
+            if v in prev:
+                continue
+            if not walkable(vx, vy):
+                continue
+            prev[v] = (ux, uy)
+            if v == goal:
+                # reconstruir
+                path = [v]
+                u = prev[v]
+                while u is not None:
+                    path.append(u)
+                    u = prev[u]
+                path.reverse()
+                return path
+            en_cola.append(v)
+
+    return None
+
+
+def bfs_recurso_mas_cercano(vehiculo, tablero, *, ignore_mines=True):
+    """
+    Devuelve la POSICIÓN del recurso más cercano en pasos BFS desde la posición del vehículo.
+    Por defecto, ignora minas (para que J1 las detone).
+    """
+    start = vehiculo.posicion
+    ancho, largo = tablero.ancho, tablero.largo
+    en_cola = deque([start])
+    dist = {start: 0}
+    prev = {start: None}
+    dirs = [(1,0), (-1,0), (0,1), (0,-1)]
+
+    # Candidatos: recursos disponibles y compatibles para este vehículo
+    objetivos = {pos for pos, r in getattr(tablero, "pos_recursos", {}).items()
+                 if r and r.estado == "disponible"
+                 and getattr(r, "categoria", None) in getattr(vehiculo, "tipo_carga_permitida", set())
+                 and (getattr(r, "asignado_a", None) in (None, vehiculo))}
+
+    if not objetivos:
+        return None
+
+    def walkable(x, y):
+        if not (0 <= x < ancho and 0 <= y < largo):
+            return False
+        if hasattr(tablero, "es_bloqueante"):
+            if tablero.es_bloqueante(x, y):
+                return False
+        elif hasattr(tablero, "es_transitable"):
+            if not tablero.es_transitable(x, y):
+                return False
+        elif hasattr(tablero, "colision_pared"):
+            if tablero.colision_pared(x, y):
+                return False
+        if not ignore_mines and hasattr(tablero, "colision_minas"):
+            if tablero.colision_minas(x, y):
+                return False
+        return True
+
+    while en_cola:
+        ux, uy = en_cola.popleft()
+        u = (ux, uy)
+        if u in objetivos:
+            return u  # primera meta alcanzada = más cercana en pasos
+
+        for dx, dy in dirs:
+            vx, vy = ux + dx, uy + dy
+            v = (vx, vy)
+            if v in dist:
+                continue
+            if not walkable(vx, vy):
+                continue
+            dist[v] = dist[u] + 1
+            prev[v] = u
+            en_cola.append(v)
+
     return None
