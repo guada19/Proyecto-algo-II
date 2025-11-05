@@ -77,12 +77,7 @@ def main():
             # 1. Manejo de clics/botones (MOUSEDOWN/MOUSEUP)
             if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
                 # Esta línea debe llamar al método del Visualizer que procesa los clics
-                viz.handle_button_click(e)
-                
-                if viz.last_button_pressed == "init":
-                    replay.reset()
-                    tick = 0
-                    continue  # volver al loop limpio             
+                viz.handle_button_click(e)           
                 replay.registrar_frame(tablero, tick)
                 tick += 1
             

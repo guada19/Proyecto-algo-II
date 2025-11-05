@@ -111,6 +111,12 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
                     f.write(str(index))
                 pygame.quit()
                 return
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                viz.handle_button_click(event)
+                if getattr(viz, "last_button_pressed", None) == "init":
+                    print("[INFO] Se presionó INIT dentro del modo replay. Reiniciando todo...")
+                    replay.reset()
+                    return
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT:
                     index = min(index + 1, total - 1)
