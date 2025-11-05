@@ -67,11 +67,14 @@ class Visualizer:
         self._cargar_sprites()
         self._build_buttons()
         
+        #agrego este atributo para la simulación
+        self.last_button_pressed = None        
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self.last_button_pressed = b["key"]
                 self._on_button(b["key"])
                 break
     
@@ -120,6 +123,7 @@ class Visualizer:
                     for b in self.buttons:
                         if b["enabled"] and b["rect"].collidepoint(e.pos):
                             self._on_button(b["key"])
+                            self.last_button_pressed = b["key"]
                             break
 
                 elif e.type == pygame.KEYDOWN:
@@ -324,6 +328,7 @@ class Visualizer:
 
     def _do_init(self):
         """Inicializa el tablero y deja todo listo para iniciar la simulación."""
+        """Reinicia toda la simulación desde cero (botón INIT)."""
         try:
             self.tablero.set_sim_state("init")   # genera mapa, minas, recursos, vehículos
             self.timer_seconds = 0
@@ -408,6 +413,7 @@ class Visualizer:
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self.last_button_pressed = b["key"]
                 self._on_button(b["key"])
                 break
 

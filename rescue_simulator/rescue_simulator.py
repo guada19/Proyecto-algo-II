@@ -4,16 +4,6 @@ from src.visualization import Visualizer
 from data.simulations.replay_manager import ReplayManager
 from data.simulations.gui_replay import *
 
-def borrar_replays(replay):
-    """
-    Elimina todos los archivos de replay persistentes.
-    """
-    for nombre in ["partida_actual.pkl", "posicion_replay.txt"]:
-        ruta = os.path.join(replay.save_dir, nombre)
-        if os.path.exists(ruta):
-            os.remove(ruta)
-            print(f"[INFO] Archivo eliminado: {nombre}")
-
 
 def main():
     """
@@ -48,7 +38,6 @@ def main():
     pos_guardada = 0
     ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
     if os.path.exists(replay_file):
-        print("[INFO] Se encontró una simulación previa. Cargando replay...")
 
         frames = replay.cargar_pickle("partida_actual.pkl")
         total = len(frames)
@@ -64,9 +53,6 @@ def main():
         if total > 0:
             pos_guardada = min(pos_guardada, total - 1)
             modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
-        borrar_replays(replay)
-        replay.reset()
-    
     
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
@@ -91,7 +77,12 @@ def main():
             # 1. Manejo de clics/botones (MOUSEDOWN/MOUSEUP)
             if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
                 # Esta línea debe llamar al método del Visualizer que procesa los clics
-                viz.handle_button_click(e)             
+                viz.handle_button_click(e)
+                
+                if viz.last_button_pressed == "init":
+                    replay.reset()
+                    tick = 0
+                    continue  # volver al loop limpio             
                 replay.registrar_frame(tablero, tick)
                 tick += 1
             
