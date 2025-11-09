@@ -69,7 +69,9 @@ class Visualizer:
         self._build_buttons()
         
         #agrego este atributo para la simulación
-        self.last_button_pressed = None        
+        self.last_button_pressed = None  
+        #atributo para los botones de replay
+        self.is_replay_view = False     
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
@@ -262,8 +264,8 @@ class Visualizer:
             ("init", "init"),
             ("play", "play"),
             ("stop", "stop"),
-            ("prev", "prev"),
-            ("next", "next"),
+            ("<< prev", "prev"),
+            ("next >>", "next"),
         ]
 
         n = len(etiquetas)
@@ -406,9 +408,20 @@ class Visualizer:
             self._set_button_text("play", "play")
             self._set_enabled("init", True)
             self._set_enabled("stop", True)
-            self._set_enabled("prev", True)
-            self._set_enabled("next", True)
+            self._set_enabled("prev", False)
+            self._set_enabled("next", False)
+            self._update_replay_button_status()
             #print("Simulación pausada.")
+
+    def _update_replay_button_status(self):
+        if not self.is_replay_view:
+            self._set_enabled("prev", False)
+            self._set_enabled("next", False)
+            return
+
+        self._set_enabled("prev", True)
+        self._set_enabled("next", True)
+                
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -416,9 +429,9 @@ class Visualizer:
             except Exception: pass
         self._set_enabled("play", False)
         self._set_enabled("stop", False)
+        self._set_enabled("init", True)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
-        self._set_enabled("init", True)
 
         try:
             rm = getattr(self, "replay_manager", None)
@@ -436,19 +449,27 @@ class Visualizer:
 
 
     def _do_prev(self):
+        if not self.is_replay_view:
+            return
         if hasattr(self.tablero, "prev_frame"):
-            try: 
-                self.tablero.prev_frame()
-                #self._update_replay_button_status()
-            except Exception: pass
+            self.tablero.next_frame()
 
     def _do_next(self):
+        if not self.is_replay_view:
+            return
         if hasattr(self.tablero, "next_frame"):
-            try: 
-                self.tablero.next_frame()
-                #self._update_replay_button_status()
-            except Exception: pass
-    
+            self.tablero.next_frame()
+        
+
+    def enter_replay_view(self):
+        self.is_replay_view = True
+        self._update_replay_button_status()
+
+    def exit_replay_view(self):
+        self.is_replay_view = False
+        self._set_enabled("prev", False)
+        self._set_enabled("next", False)
+
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
