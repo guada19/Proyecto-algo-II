@@ -69,7 +69,7 @@ def mostrar_menu_final(viz, replay):
         viz.pantalla.blit(overlay, board_rect.topleft)
 
         # Panel central
-        pygame.draw.rect(viz.pantalla, (25, 47, 2), panel_rect, border_radius=18)
+        pygame.draw.rect(viz.pantalla, (55, 55, 49), panel_rect, border_radius=18)
 
         # Título
         titulo = fuente_titulo.render("Simulación terminada", True, (203, 196, 177))
