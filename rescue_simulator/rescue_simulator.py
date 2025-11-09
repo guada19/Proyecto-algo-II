@@ -115,6 +115,26 @@ def main():
                 replay.registrar_frame(tablero, tick)
                 tick += 1
         
+        if tablero.sim_state == "running":
+            now = pygame.time.get_ticks()
+            # primera referencia
+            if not hasattr(viz, "_last_timer_tick"):
+                viz._last_timer_tick = now
+            # ¿pasó 1 segundo?
+            if now - viz._last_timer_tick >= 1000:
+                viz.timer_seconds = max(0, viz.timer_seconds - 1)
+                viz._last_timer_tick = now
+
+                # si llegó a 0 → detener (el menú lo abre el bloque de 'stopped')
+                if viz.timer_seconds <= 0:
+                    viz.timer_seconds = 0
+                    pygame.display.flip()
+                    pygame.time.delay(500)
+                    try:
+                        tablero.set_sim_state("stopped")
+                    except Exception as e:
+                        print("Error al detener por tiempo agotado:", e)
+
         # --- Dibujar frame ---
         viz.pantalla.fill(viz.color_fondo)
         viz.draw_grid()
@@ -122,7 +142,7 @@ def main():
         viz.draw_mine_radius()
         viz.draw_from_tablero() 
         pygame.display.flip()
-        viz.clock.tick(150)
+        viz.clock.tick(60)
         
             # --- Detectar fin de simulación y abrir menú una sola vez ---
         if (not menu_shown) and prev_state != "stopped" and tablero.sim_state == "stopped":

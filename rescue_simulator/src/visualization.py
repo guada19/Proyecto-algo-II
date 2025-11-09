@@ -151,7 +151,7 @@ class Visualizer:
             self.clock.tick(60)
 
             # --- TIMER: cuenta regresiva ---
-            if getattr(self, "sim_state", None) == "running":
+            if getattr(self.tablero, "sim_state", None) == "running":
                 # Actualizar cada segundo
                 now = pygame.time.get_ticks()
                 if not hasattr(self, "_last_timer_tick"):
@@ -168,7 +168,6 @@ class Visualizer:
                             self.tablero.set_sim_state("stopped")
                             self._set_enabled("play", False)
                             self._set_enabled("stop", False)
-                            self._set_enabled("replay", True)
                         except Exception as e:
                             print("Error al detener por tiempo agotado:", e)
 
