@@ -32,9 +32,29 @@ def main():
     
     
     replay = ReplayManager()
+    viz.replay_manager = replay
     tick = 0    
+    replay_file = os.path.join(replay.save_dir, "partida_actual.pkl")
 
-    # Temporizador de la simulación
+    pos_guardada = 0
+    ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+    if os.path.exists(replay_file):
+
+        frames = replay.cargar_pickle("partida_actual.pkl")
+        total = len(frames)
+        pos_guardada = 0
+
+        if os.path.exists(ruta_pos):
+            with open(ruta_pos) as f:
+                try:
+                    pos_guardada = int(f.read().strip())
+                except ValueError:
+                    pos_guardada = 0
+
+        if total > 0:
+            pos_guardada = min(pos_guardada, total - 1)
+            modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
+    
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
     
@@ -49,14 +69,16 @@ def main():
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 running = False
-            
+                replay.guardar_pickle("partida_actual.pkl")
+                with open(ruta_pos, "w") as f:
+                    f.write(str(tick))
             # --- MANEJO CENTRALIZADO DE EVENTOS ---
             # Si el evento es un clic o una tecla, el Visualizer lo procesa.
             
             # 1. Manejo de clics/botones (MOUSEDOWN/MOUSEUP)
             if e.type == pygame.MOUSEBUTTONUP and e.button == 1:
                 # Esta línea debe llamar al método del Visualizer que procesa los clics
-                viz.handle_button_click(e) 
+                viz.handle_button_click(e)           
                 replay.registrar_frame(tablero, tick)
                 tick += 1
             
@@ -81,6 +103,7 @@ def main():
                     tablero.inicializar_vehiculos()
                     tablero.actualizar_matriz()
                     tablero._guardar_estado_en_historial()
+                    
         # --- Lógica de la Simulación (Tick Controlado) ---
         if tablero.sim_state == "running":
             # Avanza el juego si ha pasado el tiempo definido (200ms)
@@ -102,8 +125,7 @@ def main():
     if tablero.sim_state == "stopped":
         running = False
         replay.guardar_pickle("partida_actual.pkl")
-        replay.guardar_json_resumido("partida_actual.json")
-        mostrar_menu_final(viz, replay)
+        #mostrar_menu_final(viz, replay)
         #pygame.init()
         # Creamos un nuevo visualizador para restaurar la ventana
         #viz = Visualizer(tablero, ancho=viz_ancho, alto=viz_alto)

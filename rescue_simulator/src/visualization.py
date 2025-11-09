@@ -1,6 +1,7 @@
 import pygame
 pygame.init()
 import os
+from data.simulations.gui_replay import *
 
 # ruta relativa al archivo actual
 font_1 = os.path.join(os.path.dirname(__file__), "..", "data", "fonts", "RubikDirt-Regular.ttf")
@@ -27,7 +28,7 @@ class Visualizer:
         self.color_grid_line = (60, 54, 49)  #lineas
         self.color_panel = (143, 125, 110)    # bases
         self.color_grid_bg = (149, 135, 122)  #fondo tablero
-        self.color_borde = (57, 50, 44)      # bordes negros
+        self.color_borde = (57, 50, 44)      # bordes 
         self.color_titulo = (210, 180, 140)  #titulos
         #fuentes 
         self.font_titulo = pygame.font.Font(font_1, 35)
@@ -67,11 +68,14 @@ class Visualizer:
         self._cargar_sprites()
         self._build_buttons()
         
+        #agrego este atributo para la simulación
+        self.last_button_pressed = None        
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self.last_button_pressed = b["key"]
                 self._on_button(b["key"])
                 break
     
@@ -120,6 +124,7 @@ class Visualizer:
                     for b in self.buttons:
                         if b["enabled"] and b["rect"].collidepoint(e.pos):
                             self._on_button(b["key"])
+                            self.last_button_pressed = b["key"]
                             break
 
                 elif e.type == pygame.KEYDOWN:
@@ -237,6 +242,7 @@ class Visualizer:
             ("stop", "stop"),
             ("prev", "prev"),
             ("next", "next"),
+            ("replay", "replay"),
         ]
 
         n = len(etiquetas)
@@ -261,6 +267,7 @@ class Visualizer:
         self._set_enabled("stop", False)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
+        self._set_enabled("replay", False)
     
     def _btn(self, key: str):
         for b in self.buttons:
@@ -283,6 +290,8 @@ class Visualizer:
         pygame.draw.rect(self.pantalla, self.color_fondo, self.footer_rect, border_radius=6)
         pygame.draw.rect(self.pantalla, self.color_fondo,  self.footer_rect, 2, border_radius=6)
 
+        self._update_replay_button_status()
+        
         mx, my = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()[0]
  
@@ -319,11 +328,14 @@ class Visualizer:
             self._do_prev()
         elif key == "next":
             self._do_next()
+        elif key == "replay":            
+            self._do_replay()
         elif key == "quit":
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def _do_init(self):
         """Inicializa el tablero y deja todo listo para iniciar la simulación."""
+        """Reinicia toda la simulación desde cero (botón INIT)."""
         try:
             self.tablero.set_sim_state("init")   # genera mapa, minas, recursos, vehículos
             self.timer_seconds = 0
@@ -339,6 +351,7 @@ class Visualizer:
         self._set_enabled("stop", True)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
+        self._set_enabled("replay", False)
 
         #print("Tablero inicializado, presioná Play para comenzar la simulación.")
 
@@ -363,11 +376,12 @@ class Visualizer:
                     print(f" No se pudo iniciar simulación: {e}")
 
             # actualizar interfaz: ahora el botón debe decir "Pause"
-            self._set_button_text("play", "Pause")
+            self._set_button_text("play", "pause")
             self._set_enabled("init", False)
             self._set_enabled("stop", True)
             self._set_enabled("prev", False)
             self._set_enabled("next", False)
+            self._set_enabled("replay", False)
             #print("Simulación corriendo...")
 
         # --- Si está corriendo, pausar ---
@@ -378,6 +392,7 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
+            self._set_enabled("replay", False)
             #print("Simulación pausada.")
 
     def _do_stop(self):
@@ -389,6 +404,7 @@ class Visualizer:
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
         self._set_enabled("init", True)
+        self._set_enabled("replay", True)
 
     def _do_prev(self):
         if hasattr(self.tablero, "prev_frame"):
@@ -404,10 +420,45 @@ class Visualizer:
                 #self._update_replay_button_status()
             except Exception: pass
     
+    def _update_replay_button_status(self):
+        """
+        Habilita el botón 'replay' solo cuando el juego está detenido
+        (por STOP o porque terminó la simulación).
+        """
+        try:
+            stopped = getattr(self.tablero, "sim_state", None) == "stopped"
+            finished = bool(getattr(self.tablero, "game_finished", False))
+            self._set_enabled("replay", stopped or finished)
+        except Exception:
+            self._set_enabled("replay", False)
+
+    def _do_replay(self):
+        rm = getattr(self, "replay_manager", None)
+        if rm is None:
+            print("ReplayManager no configurado en Visualizer (viz.replay_manager).")
+            return
+
+        try:
+            rm.guardar_pickle("partida_actual.pkl")
+        except Exception as e:
+            print("Advertencia: no se pudo guardar el replay:", e)
+
+        if hasattr(self.tablero, "set_sim_state"):
+            try:
+                self.tablero.set_sim_state("stopped")
+            except Exception:
+                pass
+
+        mostrar_menu_final(self, rm)  # abre la ventana con el botón “Reproducir replay”
+
+
+
+
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
         for b in self.buttons:
             if b["enabled"] and b["rect"].collidepoint(e.pos):
+                self.last_button_pressed = b["key"]
                 self._on_button(b["key"])
                 break
 

@@ -23,9 +23,24 @@ def mostrar_menu_final(viz, replay):
     fuente_subtitulo = pygame.font.Font(font_1, 20)
     reloj = pygame.time.Clock()
 
-    # Definir botones
-    boton_replay = pygame.Rect(250, 250, 250, 70)
-    boton_salir = pygame.Rect(250, 340, 250, 70)
+    # --- Zona del tablero central (entre bases) ---
+    board_rect = getattr(viz, "central_rect", pygame.Rect(0, 0, viz.ancho, viz.alto))
+
+    # --- Cálculo del panel centrado ---
+    panel_w = int(board_rect.width * 0.6)
+    panel_h = 280
+    panel_rect = pygame.Rect(0, 0, panel_w, panel_h)
+    panel_rect.center = board_rect.center
+
+    # --- Botones centrados dentro del panel ---
+    boton_w, boton_h = int(panel_w * 0.50), 50
+    gap = 20
+    boton_replay = pygame.Rect(0, 0, boton_w, boton_h)
+    boton_salir = pygame.Rect(0, 0, boton_w, boton_h)
+    boton_replay.centerx = boton_salir.centerx = panel_rect.centerx
+    boton_replay.centery = panel_rect.centery + 15
+    boton_salir.top = boton_replay.bottom + gap
+    boton_salir.centerx = panel_rect.centerx
     
     while True:
         for event in pygame.event.get():
@@ -49,42 +64,39 @@ def mostrar_menu_final(viz, replay):
         viz.draw_from_tablero()
 
         # Capa semi-transparente
-        overlay = pygame.Surface(viz.pantalla.get_size(), pygame.SRCALPHA)
+        overlay = pygame.Surface((board_rect.width, board_rect.height), pygame.SRCALPHA)
         overlay.fill((78, 77, 52, 70))  # negro con transparencia
-        viz.pantalla.blit(overlay, (0, 0))
+        viz.pantalla.blit(overlay, board_rect.topleft)
 
         # Panel central
-        pygame.draw.rect(viz.pantalla, (40, 40, 40), (150, 150, 450, 300), border_radius=20)
-        pygame.draw.rect(viz.pantalla, (200, 200, 200), (150, 150, 450, 300), 3, border_radius=20)
+        pygame.draw.rect(viz.pantalla, (25, 47, 2), panel_rect, border_radius=18)
 
         # Título
-        titulo = fuente_titulo.render("Simulación terminada", True, (255, 255, 255))
-        viz.pantalla.blit(titulo, (180, 170))
+        titulo = fuente_titulo.render("Simulación terminada", True, (203, 196, 177))
+        subtitulo = fuente_subtitulo.render(cartel, True, (203, 196, 177))
+        viz.pantalla.blit(titulo, titulo.get_rect(center=(panel_rect.centerx, panel_rect.top + 60)))
+        viz.pantalla.blit(subtitulo, subtitulo.get_rect(center=(panel_rect.centerx, panel_rect.top + 105)))
 
-        altura_titulo = titulo.get_height()
 
-        sub_titulo = fuente_subtitulo.render(cartel, True, (255, 255, 255))
-        viz.pantalla.blit(sub_titulo, (250, 180 + altura_titulo))
-        
         # Botones
         mouse_pos = pygame.mouse.get_pos()
-        color_replay = (143, 125, 110) if boton_replay.collidepoint(mouse_pos) else (60, 180, 60)
-        color_salir = (143, 125, 110) if boton_salir.collidepoint(mouse_pos) else (180, 60, 60)
+        color_replay = (10, 32, 11) if boton_replay.collidepoint(mouse_pos) else (17, 53, 19)
+        color_salir = (67, 23, 21) if boton_salir.collidepoint(mouse_pos) else (112, 38, 35)
 
-        pygame.draw.rect(viz.pantalla, color_replay, boton_replay, border_radius=15)
-        pygame.draw.rect(viz.pantalla, color_salir, boton_salir, border_radius=15)
+        pygame.draw.rect(viz.pantalla, color_replay, boton_replay, border_radius=12)
+        pygame.draw.rect(viz.pantalla, color_salir, boton_salir, border_radius=12)
 
-        texto_replay = fuente_boton.render("Reproducir replay", True, (0, 0, 0))
-        texto_salir = fuente_boton.render("Salir", True, (0, 0, 0))
+        texto_replay = fuente_boton.render("Reproducir replay", True, (108, 121, 109))
+        texto_salir = fuente_boton.render("Salir", True, (169, 125, 123))
 
-        viz.pantalla.blit(texto_replay, (boton_replay.x + 25, boton_replay.y + 15))
-        viz.pantalla.blit(texto_salir, (boton_salir.x + 95, boton_salir.y + 15))
+        viz.pantalla.blit(texto_replay, texto_replay.get_rect(center=boton_replay.center))
+        viz.pantalla.blit(texto_salir, texto_salir.get_rect(center=boton_salir.center))
 
         pygame.display.flip()
         reloj.tick(30)
 
 
-def modo_replay_misma_pantalla(viz, replay):
+def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
     """
     Reproduce automáticamente el replay, pero permite usar flechas para moverse frame a frame.
     """
@@ -94,11 +106,11 @@ def modo_replay_misma_pantalla(viz, replay):
         print("No hay frames guardados en el replay.")
         return
 
-    index = 0
+    index = desde_frame
     total = len(frames)
     reloj = pygame.time.Clock()
 
-    reproduciendo = True  # True = corre solo; False = control manual
+    reproduciendo = auto_play  # True = corre solo; False = control manual
     velocidad_fps = 4    # velocidad del replay automático
 
     fuente_info = pygame.font.Font(None, 32)
@@ -106,8 +118,17 @@ def modo_replay_misma_pantalla(viz, replay):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                with open(ruta_pos, "w") as f:
+                    f.write(str(index))
                 pygame.quit()
                 return
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                viz.handle_button_click(event)
+                if getattr(viz, "last_button_pressed", None) == "init":
+                    print("[INFO] Se presionó INIT dentro del modo replay. Reiniciando todo...")
+                    replay.reset()
+                    return
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT:
                     index = min(index + 1, total - 1)
@@ -118,6 +139,9 @@ def modo_replay_misma_pantalla(viz, replay):
                 elif event.key == pygame.K_SPACE:
                     reproduciendo = not reproduciendo  # pausar/reanudar
                 elif event.key == pygame.K_ESCAPE:
+                    ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                    with open(ruta_pos, "w") as f:
+                        f.write(str(index))
                     return
 
         # Actualizar frame
