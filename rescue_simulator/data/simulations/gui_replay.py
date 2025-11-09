@@ -70,6 +70,7 @@ def mostrar_menu_final(viz, replay):
         viz.draw_buttons()
         viz.draw_mine_radius()
         viz.draw_from_tablero()
+        viz.draw_vehicles()
 
         # Capa semi-transparente
         overlay = pygame.Surface((board_rect.width, board_rect.height), pygame.SRCALPHA)

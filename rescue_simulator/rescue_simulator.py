@@ -140,7 +140,8 @@ def main():
         viz.draw_grid()
         viz.draw_buttons() # Dibuja los botones (se encarga del hover/press)
         viz.draw_mine_radius()
-        viz.draw_from_tablero() 
+        viz.draw_from_tablero()
+        viz.draw_vehicles() 
         pygame.display.flip()
         viz.clock.tick(60)
         
