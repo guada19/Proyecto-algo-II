@@ -58,6 +58,8 @@ def main():
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
     
+    prev_state = tablero.sim_state
+    menu_shown = False
     
     # 3) loop de visualización
     running = True
@@ -121,11 +123,26 @@ def main():
         viz.draw_from_tablero() 
         pygame.display.flip()
         viz.clock.tick(150)
-    
+        
+            # --- Detectar fin de simulación y abrir menú una sola vez ---
+        if (not menu_shown) and prev_state != "stopped" and tablero.sim_state == "stopped":
+            try:
+                replay.guardar_pickle("partida_actual.pkl")
+            except Exception:
+                pass
+
+            from data.simulations.gui_replay import mostrar_menu_final
+            mostrar_menu_final(viz, replay)
+
+            menu_shown = True
+            running = False  # (si querés salir del bucle después del menú)
+
+        prev_state = tablero.sim_state
+
     if tablero.sim_state == "stopped":
         running = False
         replay.guardar_pickle("partida_actual.pkl")
-        #mostrar_menu_final(viz, replay)
+        mostrar_menu_final(viz, replay)
         #pygame.init()
         # Creamos un nuevo visualizador para restaurar la ventana
         #viz = Visualizer(tablero, ancho=viz_ancho, alto=viz_alto)

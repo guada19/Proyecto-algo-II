@@ -149,6 +149,29 @@ class Visualizer:
 
             pygame.display.flip()
             self.clock.tick(60)
+
+            # --- TIMER: cuenta regresiva ---
+            if getattr(self, "sim_state", None) == "running":
+                # Actualizar cada segundo
+                now = pygame.time.get_ticks()
+                if not hasattr(self, "_last_timer_tick"):
+                    self._last_timer_tick = now
+
+                # Si pasó un segundo (1000 ms)
+                if now - self._last_timer_tick >= 1000:
+                    self.timer_seconds = max(0, self.timer_seconds - 1)
+                    self._last_timer_tick = now
+
+                    # Si llegó a cero, detener la simulación automáticamente
+                    if self.timer_seconds <= 0:
+                        try:
+                            self.tablero.set_sim_state("stopped")
+                            self._set_enabled("play", False)
+                            self._set_enabled("stop", False)
+                            self._set_enabled("replay", True)
+                        except Exception as e:
+                            print("Error al detener por tiempo agotado:", e)
+
             
             
         pygame.quit()
@@ -242,7 +265,6 @@ class Visualizer:
             ("stop", "stop"),
             ("prev", "prev"),
             ("next", "next"),
-            ("replay", "replay"),
         ]
 
         n = len(etiquetas)
@@ -267,7 +289,6 @@ class Visualizer:
         self._set_enabled("stop", False)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
-        self._set_enabled("replay", False)
     
     def _btn(self, key: str):
         for b in self.buttons:
@@ -290,7 +311,6 @@ class Visualizer:
         pygame.draw.rect(self.pantalla, self.color_fondo, self.footer_rect, border_radius=6)
         pygame.draw.rect(self.pantalla, self.color_fondo,  self.footer_rect, 2, border_radius=6)
 
-        self._update_replay_button_status()
         
         mx, my = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()[0]
@@ -328,8 +348,6 @@ class Visualizer:
             self._do_prev()
         elif key == "next":
             self._do_next()
-        elif key == "replay":            
-            self._do_replay()
         elif key == "quit":
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
@@ -338,7 +356,8 @@ class Visualizer:
         """Reinicia toda la simulación desde cero (botón INIT)."""
         try:
             self.tablero.set_sim_state("init")   # genera mapa, minas, recursos, vehículos
-            self.timer_seconds = 0
+            self.timer_seconds = 60
+            self._last_timer_tick = pygame.time.get_ticks()
         except Exception as e:
             print("Error al inicializar simulación:", e)
             return
@@ -351,7 +370,6 @@ class Visualizer:
         self._set_enabled("stop", True)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
-        self._set_enabled("replay", False)
 
         #print("Tablero inicializado, presioná Play para comenzar la simulación.")
 
@@ -381,7 +399,6 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", False)
             self._set_enabled("next", False)
-            self._set_enabled("replay", False)
             #print("Simulación corriendo...")
 
         # --- Si está corriendo, pausar ---
@@ -392,19 +409,32 @@ class Visualizer:
             self._set_enabled("stop", True)
             self._set_enabled("prev", True)
             self._set_enabled("next", True)
-            self._set_enabled("replay", False)
             #print("Simulación pausada.")
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
             try: self.tablero.set_sim_state("stopped")
             except Exception: pass
-        self._set_enabled("pause_resume", False)
+        self._set_enabled("play", False)
         self._set_enabled("stop", False)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
         self._set_enabled("init", True)
-        self._set_enabled("replay", True)
+
+        try:
+            rm = getattr(self, "replay_manager", None)
+            if rm is not None:
+                # Guardar los frames por si el menú lee del pickle
+                try:
+                    rm.guardar_pickle("partida_actual.pkl")
+                except Exception:
+                    pass
+
+                from data.simulations.gui_replay import mostrar_menu_final
+                mostrar_menu_final(self, rm)
+        except Exception as e:
+            print("No se pudo abrir el menú final desde STOP:", e)
+
 
     def _do_prev(self):
         if hasattr(self.tablero, "prev_frame"):
@@ -420,39 +450,6 @@ class Visualizer:
                 #self._update_replay_button_status()
             except Exception: pass
     
-    def _update_replay_button_status(self):
-        """
-        Habilita el botón 'replay' solo cuando el juego está detenido
-        (por STOP o porque terminó la simulación).
-        """
-        try:
-            stopped = getattr(self.tablero, "sim_state", None) == "stopped"
-            finished = bool(getattr(self.tablero, "game_finished", False))
-            self._set_enabled("replay", stopped or finished)
-        except Exception:
-            self._set_enabled("replay", False)
-
-    def _do_replay(self):
-        rm = getattr(self, "replay_manager", None)
-        if rm is None:
-            print("ReplayManager no configurado en Visualizer (viz.replay_manager).")
-            return
-
-        try:
-            rm.guardar_pickle("partida_actual.pkl")
-        except Exception as e:
-            print("Advertencia: no se pudo guardar el replay:", e)
-
-        if hasattr(self.tablero, "set_sim_state"):
-            try:
-                self.tablero.set_sim_state("stopped")
-            except Exception:
-                pass
-
-        mostrar_menu_final(self, rm)  # abre la ventana con el botón “Reproducir replay”
-
-
-
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
