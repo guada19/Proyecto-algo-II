@@ -442,7 +442,17 @@ class Tablero:
         except Exception:
             pass
 
-
+    def copiar_estado_de(self, otro_tablero):
+        """Copia de forma segura las estructuras principales desde otro tablero."""
+        # Deepcopy asegura que no compartan referencias
+        self.matriz = copy.deepcopy(getattr(otro_tablero, "matriz", []))
+        self.vehiculos = copy.deepcopy(getattr(otro_tablero, "vehiculos", []))
+        self.minas = copy.deepcopy(getattr(otro_tablero, "minas", []))
+        self.recursos = copy.deepcopy(getattr(otro_tablero, "recursos", []))
+        self.historial = copy.deepcopy(getattr(otro_tablero, "historial", []))
+        
+        # Estado de simulación
+        self.sim_state = getattr(otro_tablero, "sim_state", "running")
 
 #---Funciones que se quedan ---
 

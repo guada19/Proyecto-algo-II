@@ -25,7 +25,7 @@ class ReplayManager:
         ruta = os.path.join(self.save_dir, nombre)
         with open(ruta, "wb") as f:
             pickle.dump(self.historial_frames, f)
-
+            
     def cargar_pickle(self, nombre="replay.pkl"):
         """
         Carga un replay previamente guardado.
@@ -34,11 +34,3 @@ class ReplayManager:
         with open(ruta, "rb") as f:
             self.historial_frames = pickle.load(f)
         return self.historial_frames
-    
-    def reset(self):
-        """Vacía los frames en memoria y elimina los archivos guardados."""
-        self.historial_frames.clear()
-        for nombre in ["partida_actual.pkl", "posicion_replay.txt"]:
-            ruta = os.path.join(self.save_dir, nombre)
-            if os.path.exists(ruta):
-                os.remove(ruta)
