@@ -18,9 +18,9 @@ def mostrar_menu_final(viz, replay):
     ganador = viz.definir_ganador()
     cartel = "El ganador es:  " + ganador if ganador else "Es un empate"
     
-    fuente_titulo = pygame.font.Font(font_1, 22)
+    fuente_titulo = pygame.font.Font(font_1, 24)
     fuente_boton = pygame.font.Font(font_2, 12)
-    fuente_subtitulo = pygame.font.Font(font_1, 16)
+    fuente_subtitulo = pygame.font.Font(font_1, 18)
     reloj = pygame.time.Clock()
 
     # --- Zona del tablero central (entre bases) ---
