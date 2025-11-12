@@ -3,12 +3,11 @@ from src.pathfinding import a_star, bfs_path, bfs_recurso_mas_cercano
 
 class Estrategia_J1:
 
-    """
-    Estrategia simple para J1:
-    - Al IR a recursos: usa BFS ignorando minas (para detonarlas y no evitarlas).
-    - Al VOLVER a base: usa A* (evita minas) para no perder la carga.
-    - Mantiene compatibilidad con la interfaz/flujo del jugador 2 (camino_restante / objetivo_recurso).
-    """
+    
+    #Estrategia simple para J1:
+    # Al IR a recursos: usa BFS ignorando minas (para detonarlas y no evitarlas).
+    # Al VOLVER a base: usa A* (evita minas) para no perder la carga.
+   
 
     def __init__(self, jugador, base, tablero):
         self.jugador = jugador
@@ -16,6 +15,13 @@ class Estrategia_J1:
         self.tablero = tablero
 
     def obtener_siguiente_paso(self, vehiculo):
+        #Asignar estrategia solo si el estado del vehiculo es válido
+        if getattr(vehiculo, "estado", "activo") != "activo":
+            return None
+        if getattr(vehiculo, "viajes_restantes", 0) <= 0:
+            return None   
+
+        self._reactivar_si_puede(vehiculo)     
 
         if not hasattr(vehiculo, "camino_restante"):
             vehiculo.camino_restante = []
@@ -105,7 +111,6 @@ class Estrategia_J1:
         # Ejecutar siguiente paso (sin chequear minas: queremos detonarlas)
         return vehiculo.camino_restante.pop(0) if vehiculo.camino_restante else None
 
-
     def desasignar_recurso(self, vehiculo):
         if hasattr(vehiculo, 'objetivo_recurso') and vehiculo.objetivo_recurso:
             recurso_pos = vehiculo.objetivo_recurso
@@ -144,8 +149,7 @@ class Estrategia_J1:
         return False
 
     def _paso_lateral_libre(self, vehiculo, objetivo, ignorar_minas=False):
-        """Devuelve una celda vecina libre (sin aliado) que acerque al objetivo.
-        Si ninguna mejora distancia, devuelve la primera vecina válida; si no hay, None."""
+        #Devuelve una celda vecina libre (sin aliado) que acerque al objetivo. Si ninguna mejora distancia, devuelve la primera vecina válida; si no hay, None.
         x, y = vehiculo.posicion
         candidatos = [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
         ancho, largo = self.tablero.ancho, self.tablero.largo
@@ -184,3 +188,47 @@ class Estrategia_J1:
         # si ninguna mejora, devuelve la primera válida (para destrabar)
         return validas[0]
 
+    def _reactivar_si_puede(self, vehiculo):
+        
+        #Si el vehículo está en base, sin carga, con viajes disponibles y sin ruta/objetivo, elige un nuevo recurso y arma un camino para salir nuevamente.
+        
+        # Requisitos
+        if getattr(vehiculo, "estado", "activo") != "activo":
+            return
+        if getattr(vehiculo, "viajes_restantes", 0) <= 0:
+            return
+        if getattr(vehiculo, "carga_actual", None):
+            return
+        if getattr(vehiculo, "camino_restante", None):
+            if vehiculo.camino_restante:
+                return
+        if getattr(vehiculo, "objetivo_recurso", None):
+            return
+
+        origen = vehiculo.posicion
+
+        # 1) Elegir recurso más cercano (ignorando minas para ir)
+        objetivo = None
+        try:
+            # firma con flags (si tu helper la soporta)
+            objetivo = bfs_recurso_mas_cercano(vehiculo, self.tablero, ignore_mines=True)
+        except TypeError:
+            # firma sin flags
+            try:
+                objetivo = bfs_recurso_mas_cercano(vehiculo, self.tablero, self.jugador)
+            except TypeError:
+                objetivo = bfs_recurso_mas_cercano(vehiculo, self.tablero)
+
+        if not objetivo:
+            return
+
+        vehiculo.objetivo_recurso = objetivo
+
+        # 2) Armar camino con BFS (ignorando minas para ir)
+        path = []
+        try:
+            path = bfs_path(self.tablero, origen, objetivo, ignore_mines=True)
+        except TypeError:
+            path = bfs_path(self.tablero, origen, objetivo)
+
+        vehiculo.camino_restante = path or []
