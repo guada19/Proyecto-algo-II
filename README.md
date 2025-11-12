@@ -2,7 +2,7 @@
 
 **Tecnologías**: Python 3.10+, Pygame
 
-Rescue Simulator es una simulación por turnos donde dos bases (J1 y J2) compiten por rescatar personas y recolectar mercancías evitando minas. Incluye estrategias diferentes por jugador, pathfinding híbrido y modo de repetición.
+Rescue Simulator es una simulación por turnos donde dos jugadores (J1 y J2) compiten por rescatar personas y recolectar mercancías evitando minas. Incluye estrategias diferentes por jugador, pathfinding híbrido y modo de repetición.
 
 ---
 
@@ -48,7 +48,7 @@ Atajos teclado replay:
   - Camión: 3 (personas/mercancías) — 3 viajes
 - Las **entregas** se realizan al regresar a la base propia.
 - Puntajes por mercancía (subtipo):
-  - alimento: 10 (alias: *comida*)
+  - alimento: 10 
   - ropa: 5
   - medicamento: 20
   - armamento: 50
@@ -107,13 +107,13 @@ Atajos teclado replay:
 
 - Python 3.10 o superior
 - Pygame
-- SO: Windows / Linux
+- SO: Windows
 
 ---
 
 ## Integrantes
 
-- Guadaluper Nadal
+- Guadalupe Nadal
 - Andrea Pereyra 
 
 Repositorio: [(https://github.com/guada19/Proyecto-algo-II.git)]
