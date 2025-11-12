@@ -53,8 +53,29 @@ def main():
 
         if total > 0:
             pos_guardada = min(pos_guardada, total - 1)
-            modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
-    
+            tablero_replay = modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
+
+            if total < 60 and tablero_replay:
+                
+                # Copiar el estado visual completo al tablero activo
+                tablero.copiar_estado_de(tablero_replay)
+
+                # Forzar actualización visual y lógica
+                tablero.actualizar_matriz()
+                if hasattr(tablero, "_guardar_estado_en_historial"):
+                    tablero._guardar_estado_en_historial()
+
+                # Reactivar la simulación en curso
+                tablero.set_sim_state("running")
+                viz.tablero = tablero
+                viz.timer_seconds = max(0, 60 - total)
+
+                # Continuar guardando frames en el mismo replay
+                replay.historial_frames = frames.copy()
+                tick = total
+            else:
+                print("[INFO] Replay completo, no se reanuda simulación.")
+                
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
     

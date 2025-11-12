@@ -18,9 +18,9 @@ def mostrar_menu_final(viz, replay):
     ganador = viz.definir_ganador()
     cartel = "El ganador es:  " + ganador if ganador else "Es un empate"
     
-    fuente_titulo = pygame.font.Font(font_1, 35)
-    fuente_boton = pygame.font.Font(font_2, 18)
-    fuente_subtitulo = pygame.font.Font(font_1, 20)
+    fuente_titulo = pygame.font.Font(font_1, 22)
+    fuente_boton = pygame.font.Font(font_2, 12)
+    fuente_subtitulo = pygame.font.Font(font_1, 16)
     reloj = pygame.time.Clock()
 
     # --- Zona del tablero central (entre bases) ---
@@ -105,6 +105,7 @@ def mostrar_menu_final(viz, replay):
         reloj.tick(30)
 
 
+
 def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
     """
     Reproduce automáticamente el replay, pero permite usar flechas para moverse frame a frame.
@@ -186,10 +187,12 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
         if reproduciendo:
             index += 1
             if index >= total:
+                # Termina el replay → devolver último tablero para continuar simulación
+                ultimo_tablero = frames[-1]["tablero"]
                 if hasattr(viz, "exit_replay_view"):
                     viz.exit_replay_view()
-                mostrar_menu_final(viz, replay)
-                return
+                print(f"[INFO] Replay terminado en frame {total}, devolviendo tablero.")
+                return ultimo_tablero  
                 
 
         frame = frames[index]

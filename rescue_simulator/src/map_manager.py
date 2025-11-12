@@ -429,8 +429,56 @@ class Tablero:
         except Exception:
             pass
 
+    def copiar_estado_de(self, otro_tablero):
+        """
+        Copia el estado esencial del juego (elementos, contadores y bases) 
+        desde 'otro_tablero' al tablero actual. Usado para reanudar simulación 
+        después de un replay incompleto.
+        """
+        self.vehiculos = copy.deepcopy(otro_tablero.vehiculos)
+        self.recursos = copy.deepcopy(otro_tablero.recursos)
+        self.minas = copy.deepcopy(otro_tablero.minas)
+        
+        # Reconstruir diccionarios de posición para un acceso rápido
+        self.pos_recursos = {r.posicion: r for r in self.recursos if r.estado == "disponible"}
+        self.pos_minas = {m.posicion: m for m in self.minas if m.estado == "activa"}
+        
+        self.posiciones_ocupadas = set(self.pos_recursos.keys()) | set(self.pos_minas.keys())
+        
+        # Copiar Bases
+        self.base_jugador1 = copy.deepcopy(otro_tablero.base_jugador1)
+        self.base_jugador2 = copy.deepcopy(otro_tablero.base_jugador2)
+        self.bases = {1: self.base_jugador1, 2: self.base_jugador2}
+        
+        # Asignar vehículos de las bases a los vehículos recién copiados
+        # (Esto asegura que los objetos Base referencien a las copias en self.vehiculos)
+        self.base_jugador1.vehiculos = [v for v in self.vehiculos if v.jugador == 1]
+        self.base_jugador2.vehiculos = [v for v in self.vehiculos if v.jugador == 2]
 
+        # Sincronizar contadores
+        self.puntaje = copy.deepcopy(otro_tablero.puntaje)
+        self.entregas = copy.deepcopy(otro_tablero.entregas)
+        self.step_count = otro_tablero.step_count
 
+        # La matriz, historial y estado de simulación se actualizan en main/set_sim_state
+        
+        # Re-asociar estrategias a los vehículos copiados (si el vehículo tiene estrategia)
+        # Esto es crucial ya que el objeto Estrategia no se copia directamente en deepcopy 
+        # y debe re-apuntar al nuevo tablero actual
+        if otro_tablero.vehiculos and otro_tablero.vehiculos[0].estrategia:
+            estrategia_j1 = otro_tablero.vehiculos[0].estrategia
+            estrategia_j2 = otro_tablero.vehiculos[-1].estrategia # Asumiendo el último es de J2
+
+            for v in self.vehiculos:
+                if v.jugador == 1:
+                    v.estrategia = estrategia_j1
+                    if hasattr(estrategia_j1, 'tablero'):
+                        estrategia_j1.tablero = self
+                elif v.jugador == 2:
+                    v.estrategia = estrategia_j2
+                    if hasattr(estrategia_j2, 'tablero'):
+                        estrategia_j2.tablero = self
+        
 #---Funciones que se quedan ---
 
     # --- Métodos de Control de la Simulación ---
