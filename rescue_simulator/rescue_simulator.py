@@ -3,7 +3,7 @@ from src.map_manager import Tablero
 from src.visualization import Visualizer
 from data.simulations.replay_manager import ReplayManager
 from data.simulations.gui_replay import *
-import copy
+
 
 def main():
     """
@@ -39,11 +39,11 @@ def main():
     pos_guardada = 0
     ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
     if os.path.exists(replay_file):
+
         frames = replay.cargar_pickle("partida_actual.pkl")
         total = len(frames)
         pos_guardada = 0
 
-        # Leer último frame visto
         if os.path.exists(ruta_pos):
             with open(ruta_pos) as f:
                 try:
@@ -51,17 +51,31 @@ def main():
                 except ValueError:
                     pos_guardada = 0
 
-        # Si hay frames guardados
         if total > 0:
             pos_guardada = min(pos_guardada, total - 1)
-            ultimo_tablero = modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
-            if total < 60:
-                print(f"[INFO] Replay incompleto ({total}/60 frames). Reanudando simulación...")
-                tablero.copiar_estado_de(ultimo_tablero)
-                tablero.set_sim_state("running")
-                tick = total
+            tablero_replay = modo_replay_misma_pantalla(viz, replay, auto_play=False, desde_frame=pos_guardada)
+
+            if total < 60 and tablero_replay:
                 
-            
+                # Copiar el estado visual completo al tablero activo
+                tablero.copiar_estado_de(tablero_replay)
+
+                # Forzar actualización visual y lógica
+                tablero.actualizar_matriz()
+                if hasattr(tablero, "_guardar_estado_en_historial"):
+                    tablero._guardar_estado_en_historial()
+
+                # Reactivar la simulación en curso
+                tablero.set_sim_state("running")
+                viz.tablero = tablero
+                viz.timer_seconds = max(0, 60 - total)
+
+                # Continuar guardando frames en el mismo replay
+                replay.historial_frames = frames.copy()
+                tick = total
+            else:
+                print("[INFO] Replay completo, no se reanuda simulación.")
+                
     TIEMPO_PASO_MS = 1000 # Reducido a 200ms para que el movimiento sea visible
     ultimo_paso_tiempo = pygame.time.get_ticks()
     
@@ -71,6 +85,8 @@ def main():
     # 3) loop de visualización
     running = True
     while running:
+        tiempo_actual = pygame.time.get_ticks()
+        
         tiempo_actual = pygame.time.get_ticks()
         
         for e in pygame.event.get():

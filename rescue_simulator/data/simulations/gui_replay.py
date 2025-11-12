@@ -2,7 +2,6 @@ import pygame
 pygame.init()    
 import sys
 import os
-import copy
 
 
 # ruta relativa al archivo actual
@@ -58,8 +57,8 @@ def mostrar_menu_final(viz, replay):
                         viz._set_enabled("next", True)
                     except Exception:
                         pass    
-                    ultimo_tablero = modo_replay_misma_pantalla(viz, replay)
-                    return ultimo_tablero
+                    modo_replay_misma_pantalla(viz, replay)
+                    return
                 
                 elif boton_salir.collidepoint(event.pos):
                     pygame.quit()
@@ -106,72 +105,119 @@ def mostrar_menu_final(viz, replay):
         reloj.tick(30)
 
 
+
 def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
     """
-    Reproduce el replay dentro de la misma pantalla del visualizador.
-    Devuelve el último tablero mostrado para reanudar la simulación real.
+    Reproduce automáticamente el replay, pero permite usar flechas para moverse frame a frame.
     """
-    print(f"[REPLAY] Iniciando replay desde frame {desde_frame + 1}/{len(replay.historial_frames)}  (auto_play={auto_play})")
+    frames = replay.cargar_pickle("partida_actual.pkl")
 
-    if not replay.historial_frames:
-        print("[REPLAY] No hay frames en el replay.")
-        return copy.deepcopy(viz.tablero)
+    if not frames:
+        print("No hay frames guardados en el replay.")
+        return
 
-    # Inicializa variables
-    running = True
-    clock = pygame.time.Clock()
-    frame_index = desde_frame
-    ultimo_tablero = None
+    index = desde_frame
+    total = len(frames)
+    reloj = pygame.time.Clock()
 
-    # Entrar en modo replay visual
-    viz.is_replay_view = True
+    reproduciendo = auto_play  # True = corre solo; False = control manual
+    velocidad_fps = 4    # velocidad del replay automático
 
-    while running:
-        for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                running = False
-                break
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_ESCAPE:
-                    running = False
-                    break
-                elif e.key == pygame.K_RIGHT and not auto_play:
-                    frame_index = min(frame_index + 1, len(replay.historial_frames) - 1)
-                elif e.key == pygame.K_LEFT and not auto_play:
-                    frame_index = max(frame_index - 1, 0)
-                elif e.key == pygame.K_RETURN:  # Enter = salir del replay
-                    running = False
-                    break
+    fuente_info = pygame.font.Font(font_3, 24)
 
-        # Mostrar frame actual
-        frame = replay.historial_frames[frame_index]
-        tablero = frame["tablero"]
-        ultimo_tablero = tablero
+    # Entrar (o reafirmar) modo repetición y poner los botones en su estado inicial
+    try:
+        if hasattr(viz, "enter_replay_view"):
+            viz.enter_replay_view()
+        # asegurar que la simulación está detenida para no auto-bloquear controles
+        if hasattr(viz, "tablero") and hasattr(viz.tablero, "set_sim_state"):
+            viz.tablero.set_sim_state("stopped")
 
-        viz.tablero = tablero
-        viz.pantalla.fill(viz.color_fondo)
-        viz.draw_grid()
-        viz.draw_from_tablero()
-        viz.draw_vehicles()
+    except Exception as _e:
+        pass    
+
+    if hasattr(viz, "enter_replay_view"):
+        viz.enter_replay_view()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                with open(ruta_pos, "w") as f:
+                    f.write(str(index))
+                if hasattr(viz, "exit_replay_view"):
+                    viz.exit_replay_view()
+                pygame.quit()
+                return
+            
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                viz.handle_button_click(event)
+                btn = getattr(viz, "last_button_pressed", None)
+                if btn == "prev":
+                    index = max(index - 1, 0)
+                    reproduciendo = False
+                elif btn == "next":
+                    index = min(index + 1, total - 1)
+                    reproduciendo = False
+                elif btn == "init":
+                    print("[INFO] Se presionó INIT dentro del modo replay. Reiniciando todo...")
+                    replay.reset()
+                    if hasattr(viz, "exit_replay_view"):
+                        viz.exit_replay_view()                    
+                    return
+                
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT:
+                    index = min(index + 1, total - 1)
+                    reproduciendo = False
+                elif event.key == pygame.K_LEFT:
+                    index = max(index - 1, 0)
+                    reproduciendo = False
+                elif event.key == pygame.K_SPACE:
+                    reproduciendo = not reproduciendo  # pausar/reanudar
+                elif event.key == pygame.K_ESCAPE:
+                    ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
+                    with open(ruta_pos, "w") as f:
+                        f.write(str(index))
+                    if hasattr(viz, "exit_replay_view"):
+                        viz.exit_replay_view()                        
+                    return
+
+        # Actualizar frame
+        if reproduciendo:
+            index += 1
+            if index >= total:
+                # Termina el replay → devolver último tablero para continuar simulación
+                ultimo_tablero = frames[-1]["tablero"]
+                if hasattr(viz, "exit_replay_view"):
+                    viz.exit_replay_view()
+                print(f"[INFO] Replay terminado en frame {total}, devolviendo tablero.")
+                return ultimo_tablero  
+                
+
+        frame = frames[index]
+        
+        # 1. Almacenar el tablero actual del Visualizer
+        tablero_original = viz.tablero 
+        # 2. Reemplazarlo temporalmente con el tablero del frame de replay
+        viz.tablero = frame["tablero"] 
+        # 3. Llamar a la nueva función centralizada de dibujo
+        dibujar_frame_replay(viz, frame)        
+        # 4. Restaurar el tablero original (el de la simulación principal)
+        viz.tablero = tablero_original 
+        # --------------------------
+        
+        # Mostrar info arriba a la izquierda
+        texto_info = fuente_info.render(
+            f"Frame {index + 1}/{total}  |  {'Reproduciendo' if reproduciendo else 'Pausado'}",
+            True, (255, 255, 255)
+        )
+        viz.pantalla.blit(texto_info, (15, 10))
+
+
         pygame.display.flip()
+        reloj.tick(velocidad_fps)
 
-        # Si el modo auto_play está activo, avanza automáticamente
-        if auto_play:
-            pygame.time.delay(200)
-            frame_index += 1
-            if frame_index >= len(replay.historial_frames):
-                running = False
-        else:
-            clock.tick(30)
-
-    print(f"[REPLAY] Replay terminado en frame {frame_index}/{len(replay.historial_frames)}.")
-    print("[REPLAY] Devolviendo deepcopy del último tablero para reanudar la simulación real.")
-
-    # Aseguramos devolver una copia independiente del tablero final
-    if ultimo_tablero is None:
-        ultimo_tablero = replay.historial_frames[-1]["tablero"]
-
-    return copy.deepcopy(ultimo_tablero)
 
 def dibujar_frame_replay(viz, frame_data):
     """

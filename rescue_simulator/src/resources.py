@@ -13,6 +13,12 @@ class Resource():
     def destruirse(self):
         self.estado = "destruido"
         
+        
+    @property
+    def posicion(self):
+        #retornar la posición como tupla
+        return (self.x, self.y)
+
 class Person(Resource):
     def __init__(self):
         super().__init__(posicion = (0,0), puntaje = 50, estado = "disponible", categoria = "persona")
