@@ -69,7 +69,9 @@ class Visualizer:
         self._build_buttons()
         
         #agrego este atributo para la simulación
-        self.last_button_pressed = None        
+        self.last_button_pressed = None  
+        #atributo para los botones de replay
+        self.is_replay_view = False     
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
@@ -82,35 +84,71 @@ class Visualizer:
     def _cargar_sprites(self):
         self.img_cache = {}
 
-        def load(name):
+        target_size = getattr(self, "sprite_target_size", (32, 32))
+
+        # Ratios de escalado (cuánto de la celda deben ocupar)
+        # Ajusta estos valores si quieres que los sprites sean más grandes o pequeños
+        ratios = {
+            "vehiculo": 2.2,   # ej. Jeep, Moto
+            "persona": 1.8,    # ej. PER
+            "mina": 2.0,       # ej. 01, T1
+            "recurso": 1.2     # ej. r, c, m, a
+        }
+
+        def load(name, category="recurso"):
             ruta = os.path.join(os.path.dirname(__file__), "..", "data", "imagenes", name)
             if not os.path.exists(ruta):
                 print(f"Archivo no encontrado: {ruta}")
                 return None
             try:
-                # ahora sí: convert_alpha, ya hay display
-                return pygame.image.load(ruta).convert_alpha()
+                img = pygame.image.load(ruta).convert_alpha()
+                
+                # --- LÓGICA DE PRE-ESCALADO ---
+                # Aplicamos el ratio de la categoría al tamaño base de la celda
+                fill_ratio = ratios.get(category, 1.0)
+                
+                # Calculamos el tamaño objetivo basado en la proporción de la imagen
+                iw, ih = img.get_size()
+                if iw == 0 or ih == 0: return img # Evitar división por cero
+                
+                s = min((target_size[0] * fill_ratio) / iw, (target_size[1] * fill_ratio) / ih)
+                
+                new_w = max(12, int(iw * s))
+                new_h = max(12, int(ih * s))
+                
+                # Escalamos la imagen UNA SOLA VEZ y la devolvemos
+                return pygame.transform.smoothscale(img, (new_w, new_h))
+                # --- FIN DE LÓGICA ---
+
             except Exception as e:
                 print(f"No se pudo cargar {name}: {e} ({ruta})")
                 return None
 
-        #Vehiculos
-        self.img_cache["J"] = load("jeep2.png")
-        self.img_cache["M"] = load("moto2.png")
-        self.img_cache["C"] = load("camion2.png") 
-        self.img_cache["A"] = load("auto2.png")
-        #Recursos
-        self.img_cache["r"] = load("ropa.png")
-        self.img_cache["c"] = load("comida.png")
-        self.img_cache["m"] = load("medicina.png")
-        self.img_cache["PER"] = load("persona.png")
-        self.img_cache["a"] = load("armamento.png")
-        #Minas
-        self.img_cache["01"] = load("minaO1.png")
-        self.img_cache["02"] = load("minaO2.png")
-        self.img_cache["T1"] = load("minaT1.png")
-        self.img_cache["T2"] = load("minaT2.png")
-        self.img_cache["G1"] = load("minaG1.png")
+        # --- Vehiculos J1 (Base Izquierda) ---
+        self.img_cache[("J", 1)] = load("jeepJ1.png", "vehiculo")
+        self.img_cache[("M", 1)] = load("motoJ1.png", "vehiculo")
+        self.img_cache[("C", 1)] = load("camionJ1.png", "vehiculo") 
+        self.img_cache[("A", 1)] = load("autoJ1.png", "vehiculo")
+        
+        # --- Vehiculos J2 (Base Derecha) ---
+        self.img_cache[("J", 2)] = load("jeepJ2.png", "vehiculo")
+        self.img_cache[("M", 2)] = load("motoJ2.png", "vehiculo")
+        self.img_cache[("C", 2)] = load("camionJ2.png", "vehiculo") 
+        self.img_cache[("A", 2)] = load("autoJ2.png", "vehiculo")
+        
+        # --- Recursos ---
+        self.img_cache["r"] = load("ropa.png", "recurso")
+        self.img_cache["c"] = load("comida.png", "recurso")
+        self.img_cache["m"] = load("medicina.png", "recurso")
+        self.img_cache["a"] = load("armamento.png", "recurso")
+        self.img_cache["PER"] = load("persona.png", "persona")
+        
+        # --- Minas ---
+        self.img_cache["01"] = load("minaO1.png", "mina")
+        self.img_cache["02"] = load("minaO2.png", "mina")
+        self.img_cache["T1"] = load("minaT1.png", "mina")
+        self.img_cache["T2"] = load("minaT2.png", "mina")
+        self.img_cache["G1"] = load("minaG1.png", "mina")
 
     #Bucle que mantiene el juego corriendo
     def run(self):
@@ -145,6 +183,7 @@ class Visualizer:
             self.draw_grid()
             self.draw_mine_radius()
             self.draw_from_tablero()
+            self.draw_vehicles()
             self.draw_buttons()
 
             pygame.display.flip()
@@ -256,14 +295,16 @@ class Visualizer:
         fy = self.gy + self.central_h + self.footer_gap
         self.footer_rect = pygame.Rect(self.margen, fy, self.ancho - 2*self.margen, self.footer_h)
 
+        self.sprite_target_size = (self.celda, self.celda)
+
     #Botones
     def _build_buttons(self):
         etiquetas = [
             ("init", "init"),
             ("play", "play"),
             ("stop", "stop"),
-            ("prev", "prev"),
-            ("next", "next"),
+            ("<< prev", "prev"),
+            ("next >>", "next"),
         ]
 
         n = len(etiquetas)
@@ -406,9 +447,20 @@ class Visualizer:
             self._set_button_text("play", "play")
             self._set_enabled("init", True)
             self._set_enabled("stop", True)
-            self._set_enabled("prev", True)
-            self._set_enabled("next", True)
+            self._set_enabled("prev", False)
+            self._set_enabled("next", False)
+            self._update_replay_button_status()
             #print("Simulación pausada.")
+
+    def _update_replay_button_status(self):
+        if not self.is_replay_view:
+            self._set_enabled("prev", False)
+            self._set_enabled("next", False)
+            return
+
+        self._set_enabled("prev", True)
+        self._set_enabled("next", True)
+                
 
     def _do_stop(self):
         if hasattr(self.tablero, "set_sim_state"):
@@ -416,9 +468,9 @@ class Visualizer:
             except Exception: pass
         self._set_enabled("play", False)
         self._set_enabled("stop", False)
+        self._set_enabled("init", True)
         self._set_enabled("prev", False)
         self._set_enabled("next", False)
-        self._set_enabled("init", True)
 
         try:
             rm = getattr(self, "replay_manager", None)
@@ -436,19 +488,27 @@ class Visualizer:
 
 
     def _do_prev(self):
+        if not self.is_replay_view:
+            return
         if hasattr(self.tablero, "prev_frame"):
-            try: 
-                self.tablero.prev_frame()
-                #self._update_replay_button_status()
-            except Exception: pass
+            self.tablero.next_frame()
 
     def _do_next(self):
+        if not self.is_replay_view:
+            return
         if hasattr(self.tablero, "next_frame"):
-            try: 
-                self.tablero.next_frame()
-                #self._update_replay_button_status()
-            except Exception: pass
-    
+            self.tablero.next_frame()
+        
+
+    def enter_replay_view(self):
+        self.is_replay_view = True
+        self._update_replay_button_status()
+
+    def exit_replay_view(self):
+        self.is_replay_view = False
+        self._set_enabled("prev", False)
+        self._set_enabled("next", False)
+
 
     def handle_button_click(self, e):
         """Procesa el clic del mouse y llama a la acción correspondiente."""
@@ -615,48 +675,32 @@ class Visualizer:
         rect.center = full.center  
         return rect
 
-    def draw_item(self, tipo: str, rect: pygame.Rect):
+    def draw_item(self, tipo: str | tuple, rect: pygame.Rect):
+        """
+        Dibuja el sprite (que ya fue pre-escalado) centrado en el rect.
+        Esta función ahora es mucho más rápida al no usar smoothscale.
+        """
+        
+        img = self.img_cache.get(tipo) 
 
-        #Dibuja el sprite ocupando la mayor parte de la celda.
-        #Se adapta al tamaño de 'rect' y mantiene proporción.
-
-        img = self.img_cache.get(tipo) if hasattr(self, "img_cache") else self.img.get(tipo)
-
-        # Ratios por categoría (porcentaje del lado de la celda)
-        # Ajustalos a gusto (0.90 = 90% del lado útil)
-        if tipo in ("J", "M", "C", "A"):              # vehículos
-            fill_ratio = 2.5
-        elif str(tipo).startswith("PER"):             # personas
-            fill_ratio = 1.8
-        elif tipo in ("01","02","O1","O2","T1","T2","G1"):  # minas
-            fill_ratio = 2
-        else:                                         # recursos u otros
-            fill_ratio = 1.2
-
-
-        # Área objetivo dentro de la celda
-        max_w = rect.width
-        max_h = rect.height
-
-        # Si hay imagen, escalar proporcionalmente a fill_ratio
+        # Si hay imagen, simplemente la centramos y dibujamos
         if img:
-            iw, ih = img.get_size()
-            # escala para que entre por ancho y por alto
-            s = min((max_w * fill_ratio) / iw, (max_h * fill_ratio) / ih)
-            # Tamaño final (con mínimo para que no desaparezcan)
-            new_w = max(12, int(iw * s))
-            new_h = max(12, int(ih * s))
-            # Evitar artefactos (a veces conviene pares)
-            if new_w % 2: new_w -= 1
-            if new_h % 2: new_h -= 1
-            sprite = pygame.transform.smoothscale(img, (new_w, new_h))
-            x = rect.centerx - new_w // 2
-            y = rect.centery - new_h // 2
-            self.pantalla.blit(sprite, (x, y))
+            # Obtenemos el rectángulo de la imagen pre-escalada
+            img_rect = img.get_rect()
+            # La centramos en el rectángulo de la celda que nos pasan
+            img_rect.center = rect.center
+            
+            self.pantalla.blit(img, img_rect)
             return
 
-        # Fallback si no hay PNG (ej: minas)
-        if tipo in ("01","02","O1","O2","T1","T2","G1"):
+        # --- Fallback (si no hay PNG) ---
+        # (Este código es para dibujar cuadrados de colores si falta la imagen)
+        if isinstance(tipo, tuple):
+            tipo_base = tipo[0]
+        else:
+            tipo_base = str(tipo)
+            
+        if tipo_base in ("01","02","O1","O2","T1","T2","G1"):
             colores = {
                 "01": (121, 82, 39), "O1": (121, 82, 39),
                 "02": (119, 40, 39), "O2": (119, 40, 39),
@@ -664,30 +708,83 @@ class Visualizer:
                 "T2": (118, 119, 39),
                 "G1": (39, 78, 119),
             }
-            color = colores.get(tipo, (200, 0, 0))
-            lado = int(min(max_w, max_h) * fill_ratio)
+            color = colores.get(tipo_base, (200, 0, 0))
+            lado = int(min(rect.width, rect.height) * 0.8) # 80% de la celda
             r = pygame.Rect(rect.centerx - lado//2, rect.centery - lado//2, lado, lado)
             pygame.draw.rect(self.pantalla, color, r, border_radius=3)
             pygame.draw.rect(self.pantalla, (25,25,25), r, 1, border_radius=3)
 
 
     def draw_from_tablero(self):
-        #Pinta todo lo no-vacío de tablero.matriz usando cell_to_rect(col,fila).
+        #Pinta todo lo no-vacío de tablero.matriz (EXCEPTO vehículos)
         for fila in range(self.filas):
             for col in range(self.columnas):
                 celda = self.tablero.matriz[fila][col]
-                if celda not in (0, "0", None, ""):
-                    rect = self.cell_to_rect(col, fila, pad=2)
 
-                    if col == 0 or col == self.columnas - 1:
-                        extra_scale = 1.1   # 10% más grande en las bases
-                    else:
-                        extra_scale = 1.0
+                # --- MODIFICACIÓN ---
+                # Si la celda es un vehículo o está vacía, la saltamos.
+                # Los vehículos se dibujarán con 'draw_vehicles()'
+                if celda in ("J", "M", "C", "A", 0, "0", None, ""):
+                    continue
+                # --- FIN DE MODIFICACIÓN ---
+                
+                # (El resto del código es para dibujar recursos y minas)
+                rect = self.cell_to_rect(col, fila, pad=2)
 
-                    self.draw_item(celda, rect.inflate(
-                        int(rect.width * (extra_scale - 1)),
-                        int(rect.height * (extra_scale - 1))
-                    ))
+                if col == 0 or col == self.columnas - 1:
+                    extra_scale = 1.1   # 10% más grande en las bases
+                else:
+                    extra_scale = 1.0
+
+                self.draw_item(celda, rect.inflate(
+                    int(rect.width * (extra_scale - 1)),
+                    int(rect.height * (extra_scale - 1))
+                ))
+
+    def draw_vehicles(self):
+        """
+        Dibuja los vehículos iterando sobre self.tablero.vehiculos
+        para poder diferenciar por jugador.
+        """
+        if not hasattr(self.tablero, "vehiculos"):
+            return
+
+        for v in self.tablero.vehiculos:
+            try:
+                # Asumimos que 'v' tiene estos atributos (según map_manager.py)
+                fila, col = v.posicion
+                tipo_base = v.tipo[0]  # "J", "M", "C", "A"
+                jugador = v.jugador    # 1 o 2
+
+                # No dibujar si está fuera del tablero
+                if not (0 <= col < self.columnas and 0 <= fila < self.filas):
+                    continue 
+
+                # Obtener el rectángulo de la celda
+                rect = self.cell_to_rect(col, fila, pad=2)
+
+                # Aplicar escala (lógica copiada de draw_from_tablero)
+                if col == 0 or col == self.columnas - 1:
+                    extra_scale = 1.1   # 10% más grande en las bases
+                else:
+                    extra_scale = 1.0
+
+                draw_rect = rect.inflate(
+                    int(rect.width * (extra_scale - 1)),
+                    int(rect.height * (extra_scale - 1))
+                )
+
+                # Crear la clave de cache (ej: ("J", 1) o ("C", 2))
+                cache_key = (tipo_base, jugador)
+                
+                # Llamar a draw_item con la clave de tupla
+                self.draw_item(cache_key, draw_rect)
+
+            except Exception as e:
+                # Imprimir un error si un vehículo no tiene los atributos esperados
+                # (esto ayuda a depurar si v.tipo o v.jugador no existen)
+                #print(f"Error al dibujar vehículo {v}: {e}")
+                pass
 
     def draw_mine_radius(self):
         """Dibuja el radio de acción de cada mina activa, recortado a la grilla central.
@@ -745,6 +842,7 @@ class Visualizer:
         viz.draw_buttons() 
         viz.draw_mine_radius()
         viz.draw_from_tablero() 
+        viz.draw_vehicles()
     
     #Para cuando tengamos el tema reloj resuelto
     def set_timer(self, seconds:int|None):

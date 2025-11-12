@@ -7,7 +7,7 @@ import os
 # ruta relativa al archivo actual
 font_1 = os.path.join(os.path.dirname(__file__), "..", "fonts", "RubikDirt-Regular.ttf")
 font_2 = os.path.join(os.path.dirname(__file__), "..", "fonts", "Galindo-Regular.ttf")
-font_3 = os.path.join(os.path.dirname(__file__), "..", "fonts", "Sixtyfour-Regular.ttf")
+font_3 = os.path.join(os.path.dirname(__file__), "..", "fonts", "trebuc.ttf")
 
 
 def mostrar_menu_final(viz, replay):
@@ -50,8 +50,16 @@ def mostrar_menu_final(viz, replay):
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if boton_replay.collidepoint(event.pos):
+                    if hasattr(viz, "enter_replay_view"):
+                        viz.enter_replay_view()
+                    try:
+                        viz._set_enabled("prev", True)
+                        viz._set_enabled("next", True)
+                    except Exception:
+                        pass    
                     modo_replay_misma_pantalla(viz, replay)
                     return
+                
                 elif boton_salir.collidepoint(event.pos):
                     pygame.quit()
                     sys.exit()
@@ -62,6 +70,7 @@ def mostrar_menu_final(viz, replay):
         viz.draw_buttons()
         viz.draw_mine_radius()
         viz.draw_from_tablero()
+        viz.draw_vehicles()
 
         # Capa semi-transparente
         overlay = pygame.Surface((board_rect.width, board_rect.height), pygame.SRCALPHA)
@@ -113,7 +122,21 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
     reproduciendo = auto_play  # True = corre solo; False = control manual
     velocidad_fps = 4    # velocidad del replay automático
 
-    fuente_info = pygame.font.Font(None, 32)
+    fuente_info = pygame.font.Font(font_3, 24)
+
+    # Entrar (o reafirmar) modo repetición y poner los botones en su estado inicial
+    try:
+        if hasattr(viz, "enter_replay_view"):
+            viz.enter_replay_view()
+        # asegurar que la simulación está detenida para no auto-bloquear controles
+        if hasattr(viz, "tablero") and hasattr(viz.tablero, "set_sim_state"):
+            viz.tablero.set_sim_state("stopped")
+
+    except Exception as _e:
+        pass    
+
+    if hasattr(viz, "enter_replay_view"):
+        viz.enter_replay_view()
 
     while True:
         for event in pygame.event.get():
@@ -121,14 +144,27 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
                 ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
                 with open(ruta_pos, "w") as f:
                     f.write(str(index))
+                if hasattr(viz, "exit_replay_view"):
+                    viz.exit_replay_view()
                 pygame.quit()
                 return
+            
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 viz.handle_button_click(event)
-                if getattr(viz, "last_button_pressed", None) == "init":
+                btn = getattr(viz, "last_button_pressed", None)
+                if btn == "prev":
+                    index = max(index - 1, 0)
+                    reproduciendo = False
+                elif btn == "next":
+                    index = min(index + 1, total - 1)
+                    reproduciendo = False
+                elif btn == "init":
                     print("[INFO] Se presionó INIT dentro del modo replay. Reiniciando todo...")
                     replay.reset()
+                    if hasattr(viz, "exit_replay_view"):
+                        viz.exit_replay_view()                    
                     return
+                
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT:
                     index = min(index + 1, total - 1)
@@ -142,14 +178,19 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
                     ruta_pos = os.path.join(replay.save_dir, "posicion_replay.txt")
                     with open(ruta_pos, "w") as f:
                         f.write(str(index))
+                    if hasattr(viz, "exit_replay_view"):
+                        viz.exit_replay_view()                        
                     return
 
         # Actualizar frame
         if reproduciendo:
             index += 1
             if index >= total:
+                if hasattr(viz, "exit_replay_view"):
+                    viz.exit_replay_view()
                 mostrar_menu_final(viz, replay)
                 return
+                
 
         frame = frames[index]
         
@@ -169,6 +210,7 @@ def modo_replay_misma_pantalla(viz, replay, auto_play=True, desde_frame=0):
             True, (255, 255, 255)
         )
         viz.pantalla.blit(texto_info, (15, 10))
+
 
         pygame.display.flip()
         reloj.tick(velocidad_fps)

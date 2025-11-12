@@ -7,6 +7,13 @@ class Estrategia_J2:
         self.tablero = tablero
     
     def obtener_siguiente_paso(self, vehiculo):
+        #Asignar estrategia solo si el estado del vehiculo es válido
+        if getattr(vehiculo, "estado", "activo") != "activo":
+            return None
+        if getattr(vehiculo, "viajes_restantes", 0) <= 0:
+            return None 
+
+        #self._reactivar_si_puede(vehiculo)
 
         if not hasattr(vehiculo, "camino_restante"):   #Agregado para que funcione el regreso (creo)
             vehiculo.camino_restante = []        
@@ -110,6 +117,53 @@ class Estrategia_J2:
             and recurso.asignado_a == vehiculo
         )
 
+"""
+    def _reactivar_si_puede(self, vehiculo):
+        
+        #Si el vehículo está en base, sin carga, con viajes disponibles y sin ruta/objetivo, elige un nuevo recurso y arma un camino para salir nuevamente.
+        
+        if getattr(vehiculo, "estado", "activo") != "activo":
+            return
+        if getattr(vehiculo, "viajes_restantes", 0) <= 0:
+            return
+        if getattr(vehiculo, "carga_actual", None):
+            return
+        if getattr(vehiculo, "camino_restante", None):
+            if vehiculo.camino_restante:
+                return
+        if getattr(vehiculo, "objetivo_recurso", None):
+            return
+
+        origen = vehiculo.posicion
+
+        # 1) Elegir recurso con Dijkstra
+        objetivo = None
+        try:
+            objetivo = dijkstra_recurso_mas_cercano(vehiculo, self.tablero)
+        except TypeError:
+            try:
+                objetivo = dijkstra_recurso_mas_cercano(vehiculo, self.tablero, self.jugador)
+            except TypeError:
+                objetivo = dijkstra_recurso_mas_cercano(vehiculo, self.tablero)
+
+        if not objetivo:
+            return
+
+        vehiculo.objetivo_recurso = objetivo
+
+        # 2) Caminar con A* hacia el objetivo (evitando minas/vehículos)
+        path = []
+        try:
+            path = a_star(vehiculo, self.tablero, objetivo)
+        except TypeError:
+            # por si tu a_star requiere flags/kwargs; dejalo simple si no hace falta
+            path = a_star(vehiculo, self.tablero, objetivo)
+
+        vehiculo.camino_restante = path or []
+
+"""
+
+
 
 
 """
@@ -152,3 +206,4 @@ class Estrategia_J2:
         return recurso is not None and recurso.estado == "disponible" and recurso.categoria in vehiculo.tipo_carga_permitida
 """
         
+
