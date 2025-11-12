@@ -43,7 +43,6 @@ class Vehiculo:
             if (recurso.categoria in self.tipo_carga_permitida) and len(self.carga_actual) < self.capacidad_carga:
                 self.carga_actual.append(recurso)
                 recurso.recolectado()
-                self.viajes_restantes -= 1
                 del tablero.pos_recursos[self.posicion]
                 print(f"{self.tipo} del jugador {self.jugador} recogió {recurso.categoria} en {self.posicion}")
                 self.objetivo_recurso = None
@@ -69,7 +68,30 @@ class Vehiculo:
     def destruir_carga(self):
         for carga in self.carga_actual:
             carga.destruirse()   
-    
+
+    def limpiar_carga(self):
+        #Vacía la carga del vehículo (sin efectos secundarios).
+        try:
+            self.carga_actual.clear()
+        except Exception:
+            self.carga_actual = []
+
+    def puede_salir(self) -> bool:
+        #Puede salir de base si está en base, activo y con viajes disponibles.
+        return self.estado == "activo" and self.viajes_restantes > 0
+
+    def marcar_retirado(self):
+        #Marca el vehículo como retirado (ya no participa de la simulación).
+        self.estado = "retirado"
+        self.camino_restante = []
+        self.objetivo_recurso = None
+        self.posicion_intencionada = self.posicion
+
+    def reiniciar_para_nuevo_viaje(self):
+        #Deja el vehículo listo en base para un nuevo viaje (si quedan viajes).
+        if self.viajes_restantes > 0:
+            self.estado = "activo"
+
     """
     Esta funcion ya no la veo como útil porque la estrategia está en cada uno de los jugadores
     así que los vehiculos no ejecutan una estrategia sino que se mueven como el jugador pensó la estrategia

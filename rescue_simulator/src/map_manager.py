@@ -303,40 +303,6 @@ class Tablero:
                 return True
         return False
     
-    def start_simulation(self):
-        #Acá es donde cada jugador debería ejecutar su propia estrategia
-        
-        #NUEVO
-        # Actualizar matriz
-        #self.actualizar_matriz()
-        #self.actualizar_matriz()
-        """
-        # avanzar contador de pasos ANTES de guardar el frame para que el frame refleje el paso actual
-        try:
-            self.step_count += 1
-        except Exception:
-            self.step_count = getattr(self, "step_count", 0) + 1
-
-        # Guardar el nuevo estado en el historial 
-        self._guardar_estado_en_historial()
-        # Se asegura de estar al final del historial
-        self.indice_historial = len(self.historial_matrices) - 1
-
-        # Si alcanzamos 60 pasos, detener la simulación igual que si se presionara STOP
-        if getattr(self, "step_count", 0) >= 60:
-            # set_sim_state('stopped') ejecuta la limpieza y muestra overlay de "juego finalizado"
-            self.set_sim_state("stopped")
-            return
-            
-            def colision_vehiculos_para_a_star(self, x, y):
-        
-        for v in self.vehiculos:
-            if v.estado == "activo" and v.posicion == (x, y):
-                return True
-        return False
-            
-        """
-    
     def definir_ganador(self):
         ganador = None
         if self.puntaje["J1"] > self.puntaje["J2"]:
@@ -399,6 +365,9 @@ class Tablero:
             "armamento": 50,
             }
             if subtipo:
+                key = subtipo.lower()
+                if key == "comida":
+                    key = "alimento"
                 return tabla.get(subtipo.lower(), 10)
             return 10
     
@@ -429,11 +398,29 @@ class Tablero:
         self.puntaje[base_label] += total
         self.entregas[base_label] += len(vehiculo.carga_actual)
 
-        vehiculo.carga_actual.clear()
+        vehiculo.limpiar_carga()
         print(f"{base_label} entregó carga (+{total} pts). Total: {self.puntaje[base_label]}")
         
-        #Esta linea de acá es para que siga buscando recursos hasta que se termine la simulación 
-        #vehiculo.viajes_restantes = vehiculo.max_viajes 
+        # Decrementar viajes SOLO al entregar en base propia
+        try:
+            if vehiculo.viajes_restantes is None:
+                vehiculo.viajes_restantes = vehiculo.max_viajes
+        except Exception:
+            # fallback defensivo
+            vehiculo.viajes_restantes = getattr(vehiculo, "viajes_restantes", vehiculo.max_viajes)
+
+        vehiculo.viajes_restantes -= 1
+
+        if vehiculo.viajes_restantes <= 0:
+            # Sin viajes: retirar
+            vehiculo.marcar_retirado()
+        else:
+            # Con viajes: queda listo en base para un nuevo viaje
+            vehiculo.reiniciar_para_nuevo_viaje()
+            # Asegurar que objetivos/ruta no arrastren estado anterior
+            vehiculo.camino_restante = []
+            vehiculo.objetivo_recurso = None
+            vehiculo.posicion_intencionada = vehiculo.posicion
         
         self.actualizar_matriz()
         try:
@@ -487,6 +474,13 @@ class Tablero:
         if self.sim_state == "running":
             self.sim_state = "paused"
         elif self.sim_state == "paused":
+            vehiculos_sin_estrategia = [v for v in self.vehiculos if not getattr(v, "estrategia", None)]
+            if vehiculos_sin_estrategia:
+                print("❌ No se puede iniciar la simulación: algunos vehículos no tienen estrategia asignada.")
+                for v in vehiculos_sin_estrategia:
+                    print(f"   → {v.tipo} del jugador {v.jugador} sin estrategia")
+                self.sim_state = "paused"
+                return        
             self.sim_state = "running"
         elif self.sim_state == "init": # Si se presiona antes de que inicie la simulación
             self.initialization_simulation()
