@@ -1,6 +1,5 @@
 # Rescue Simulator — Proyecto Algoritmos II
 
-**Estado**: listo para entregar (versión documentación 2025-11-12)  
 **Tecnologías**: Python 3.10+, Pygame
 
 Rescue Simulator es una simulación por turnos donde dos bases (J1 y J2) compiten por rescatar personas y recolectar mercancías evitando minas. Incluye estrategias diferentes por jugador, pathfinding híbrido y modo de repetición.
