@@ -8,16 +8,11 @@ Rescue Simulator es una simulación por turnos donde dos jugadores (J1 y J2) com
 
 ## Cómo ejecutar
 
-1. Crear y activar venv (opcional, recomendado):
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-2. Instalar dependencias:
+1. Instalar dependencias:
    ```bash
    pip install -r requirements.txt
    ```
-3. Ejecutar:
+2. Ejecutar:
    ```bash
    python rescue_simulator.py
    ```
